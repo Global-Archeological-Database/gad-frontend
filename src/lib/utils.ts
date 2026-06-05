@@ -1,0 +1,26 @@
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+import { format } from "date-fns";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+interface FirestoreTimestamp {
+  _seconds: number;
+  _nanoseconds: number;
+}
+
+function parseDate(value: string | FirestoreTimestamp | null | undefined): Date {
+  if (!value) return new Date();
+  if (typeof value === "object" && "_seconds" in value) {
+    return new Date(value._seconds * 1000 + value._nanoseconds / 1000000);
+  }
+  return new Date(value);
+}
+
+export function formatDate(
+  value: string | FirestoreTimestamp | null | undefined
+): string {
+  return format(parseDate(value), "MMM d, yyyy");
+}
