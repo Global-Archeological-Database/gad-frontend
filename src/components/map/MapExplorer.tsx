@@ -1,9 +1,9 @@
 'use client';
 
 import { APIProvider, Map } from '@vis.gl/react-google-maps';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, X, Loader2 } from 'lucide-react';
 import { useArtifacts } from '@/hooks/useArtifacts';
 import { useMapStore } from '@/store/mapStore';
 import { useAuthStore } from '@/store/authStore';
@@ -35,7 +35,6 @@ export default function MapExplorer() {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
   const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 
-  const { data, isLoading } = useArtifacts();
   const selectedArtifactId = useMapStore((s) => s.selectedArtifactId);
   const setSelectedArtifactId = useMapStore((s) => s.setSelectedArtifactId);
   const isDetailPanelOpen = useMapStore((s) => s.isDetailPanelOpen);
@@ -43,9 +42,37 @@ export default function MapExplorer() {
   const user = useAuthStore((s) => s.user);
   const setIsSubmitFormOpen = useUiStore((s) => s.setIsSubmitFormOpen);
 
+  // ── Search state ──────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce search input — 400ms delay
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim());
+    }, 400);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchQuery]);
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setDebouncedQuery('');
+  };
+
+  // ── Artifact fetching ─────────────────────────────────────────
+  // Pass `q` param only when there's an active search query
+  const filters = debouncedQuery ? { q: debouncedQuery } : undefined;
+  const { data, isLoading, isFetching } = useArtifacts(filters);
 
   const artifacts = data?.artifacts ?? [];
+  const isSearching = isFetching && !!debouncedQuery;
+  const hasSearched = !!debouncedQuery && !isFetching;
+  const noResults = hasSearched && artifacts.length === 0;
 
   const selectedArtifact = useMemo(
     () => artifacts.find((a) => a.id === selectedArtifactId) ?? null,
@@ -149,7 +176,53 @@ export default function MapExplorer() {
                 fontFamily: 'inherit',
               }}
             />
+            {/* Clear button — visible when there's input */}
+            {searchQuery && (
+              <button
+                onClick={handleClearSearch}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                  color: '#888780',
+                }}
+                aria-label="Clear search"
+              >
+                <X size={16} />
+              </button>
+            )}
+            {/* Loading spinner — visible while search is in flight */}
+            {isSearching && (
+              <Loader2
+                size={16}
+                color="#888780"
+                style={{ animation: 'spin 1s linear infinite' }}
+              />
+            )}
           </div>
+
+          {/* No results message */}
+          {noResults && (
+            <div
+              style={{
+                marginTop: 8,
+                padding: '10px 16px',
+                backgroundColor: '#FFFFFF',
+                borderRadius: 12,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                border: '1px solid #D4C5A9',
+                textAlign: 'center',
+                fontSize: 14,
+                color: '#888780',
+              }}
+            >
+              No artifacts found for &ldquo;{debouncedQuery}&rdquo;
+            </div>
+          )}
         </div>
 
         {/* "+" FAB — bottom-right, visible to all users */}

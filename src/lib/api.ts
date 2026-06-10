@@ -69,8 +69,8 @@ export const authApi = {
 };
 
 export const aiApi = {
-  chat: (messages: { role: string; content: string }[], message: string) =>
-    request<{ reply: string }>('/api/ai/chatbot', {
+  chat: (messages: { role: string; parts: { text: string }[] }[], message: string) =>
+    request<{ reply: string; history: { role: string; parts: { text: string }[] }[] }>('/api/ai/chatbot', {
       method: 'POST',
       body: JSON.stringify({ messages, message }),
     }),

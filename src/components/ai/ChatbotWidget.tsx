@@ -63,10 +63,6 @@ export default function ChatbotWidget() {
     scrollToBottom();
   }, [messages, isLoading, scrollToBottom]);
 
-  if (!user) {
-    return null;
-  }
-
   const handleSend = async () => {
     const trimmed = inputValue.trim();
     if (!trimmed || isLoading) return;
@@ -86,7 +82,13 @@ export default function ChatbotWidget() {
         setMessages(historyForApi);
       }
 
-      const response = await aiApi.chat(historyForApi, trimmed);
+      // Convert {role, content} to {role, parts: [{text}]} format for Gemini API
+      const convertedHistory = historyForApi.map((msg) => ({
+        role: msg.role,
+        parts: [{ text: msg.content }],
+      }));
+
+      const response = await aiApi.chat(convertedHistory, trimmed);
       setMessages((prev) => [
         ...prev,
         { role: 'model', content: response.reply },
