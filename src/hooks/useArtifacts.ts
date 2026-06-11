@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { artifactsApi } from '@/lib/api';
 import type { Artifact, ArtifactListResponse } from '@/types/artifact';
 
@@ -60,5 +60,19 @@ export function useDeleteArtifact() {
       queryClient.removeQueries({ queryKey: artifactKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: artifactKeys.lists() });
     },
+  });
+}
+
+export function useInfiniteArtifacts(filters?: Record<string, string>) {
+  return useInfiniteQuery<ArtifactListResponse>({
+    queryKey: [...artifactKeys.lists(), filters ?? {}],
+    queryFn: ({ pageParam }) => {
+      const params = { ...filters };
+      if (pageParam) params.pageToken = pageParam as string;
+      return artifactsApi.list(params);
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextPageToken ?? undefined,
+    staleTime: 60000,
   });
 }

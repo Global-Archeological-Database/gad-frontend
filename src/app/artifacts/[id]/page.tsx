@@ -1,20 +1,34 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
-import StaticMap from "@/components/artifacts/StaticMap";
-import { formatDate } from "@/lib/utils";
-import type { Artifact } from "@/types/artifact";
 import type { Metadata } from "next";
+import {
+  ChevronLeftIcon,
+  MapPinIcon,
+  CalendarIcon,
+  GlobeIcon,
+  ShieldIcon,
+  LayersIcon,
+  EyeIcon,
+  UserIcon,
+  ClockIcon,
+} from "lucide-react";
+import StaticMap from "@/components/artifacts/StaticMap";
+import ArtifactAISection from "@/components/artifacts/ArtifactAISection";
+import SimilarArtifactsSection from "@/components/artifacts/SimilarArtifactsSection";
+import { getAgeColor } from "@/lib/ageColor";
+import { formatDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import type { Artifact } from "@/types/artifact";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
-const conditionColors: Record<Artifact["condition"], string> = {
-  Excellent: "bg-green-100 text-green-800 border-green-300",
-  Good: "bg-blue-100 text-blue-800 border-blue-300",
-  Fair: "bg-yellow-100 text-yellow-800 border-yellow-300",
-  Poor: "bg-orange-100 text-orange-800 border-orange-300",
-  Fragmentary: "bg-red-100 text-red-800 border-red-300",
+const conditionStyles: Record<string, { bg: string; text: string; border: string }> = {
+  Excellent: { bg: "bg-green-50", text: "text-green-700", border: "border-green-300" },
+  Good: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-300" },
+  Fair: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-300" },
+  Poor: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-300" },
+  Fragmentary: { bg: "bg-red-50", text: "text-red-700", border: "border-red-300" },
 };
 
 async function fetchArtifact(id: string): Promise<Artifact | null> {
@@ -41,39 +55,60 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Artifact Not Found — Global Archaeological Database" };
   }
 
-  const description = artifact.description
+  const truncatedDescription = artifact.description
     ? artifact.description.slice(0, 155) + (artifact.description.length > 155 ? "…" : "")
-    : `A ${artifact.age} artifact from ${artifact.cultural_origin || "an unknown origin"}.`;
+    : `A ${artifact.age || "period unknown"} artifact from ${artifact.cultural_origin || "an unknown origin"}.`;
+
+  const hasGeo =
+    artifact.location?.coordinates?.latitude && artifact.location?.coordinates?.longitude;
+
+  const jsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "ArchiveComponent",
+    name: artifact.title,
+    description: artifact.description,
+    keywords: artifact.tags?.join(", ") || "",
+    material: artifact.materials?.join(", ") || "",
+    ...(artifact.image_url ? { image: artifact.image_url } : {}),
+    ...(artifact.location?.city || artifact.location?.country
+      ? {
+          locationCreated: {
+            "@type": "Place",
+            name: [artifact.location?.city, artifact.location?.country]
+              .filter(Boolean)
+              .join(", "),
+            ...(hasGeo
+              ? {
+                  geo: {
+                    "@type": "GeoCoordinates",
+                    latitude: artifact.location!.coordinates!.latitude,
+                    longitude: artifact.location!.coordinates!.longitude,
+                  },
+                }
+              : {}),
+          },
+        }
+      : {}),
+    dateCreated: artifact.created_at
+      ? typeof artifact.created_at === "object" && "_seconds" in artifact.created_at
+        ? new Date(
+            (artifact.created_at as { _seconds: number; _nanoseconds: number })._seconds * 1000
+          ).toISOString()
+        : artifact.created_at
+      : undefined,
+    condition: artifact.condition,
+  };
 
   return {
-    title: `${artifact.title} — Global Archaeological Database`,
-    description,
+    title: `${artifact.title} | GAD`,
+    description: truncatedDescription,
     openGraph: {
       title: artifact.title,
-      description,
+      description: truncatedDescription,
       ...(artifact.image_url ? { images: [{ url: artifact.image_url }] } : {}),
     },
     other: {
-      "application/ld+json": JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "ArchiveComponent",
-        name: artifact.title,
-        description: artifact.description,
-        ...(artifact.image_url ? { image: artifact.image_url } : {}),
-        ...(artifact.location?.country
-          ? { locationCreated: artifact.location.country }
-          : {}),
-        dateCreated: artifact.created_at
-          ? typeof artifact.created_at === "object" && "_seconds" in artifact.created_at
-            ? new Date(
-                (artifact.created_at as { _seconds: number; _nanoseconds: number })._seconds *
-                  1000
-              ).toISOString()
-            : artifact.created_at
-          : undefined,
-        material: artifact.materials,
-        condition: artifact.condition,
-      }),
+      "application/ld+json": JSON.stringify(jsonLd),
     },
   };
 }
@@ -86,217 +121,273 @@ export default async function ArtifactDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  // Backend stores coordinates at top level (latitude/longitude) and optionally in location.coordinates
-  const lat = artifact.latitude ?? artifact.location?.coordinates?.latitude;
-  const lng = artifact.longitude ?? artifact.location?.coordinates?.longitude;
-  const mapSrc = lat && lng
-    ? `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=14&size=400x200&markers=${lat},${lng}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}`
-    : null;
+  const ageColor = getAgeColor(artifact.age);
+  const conditionStyle = conditionStyles[artifact.condition] || conditionStyles.Fair;
+
+  // Resolve coordinates from either top-level or nested location
+  const lat = artifact.latitude ?? artifact.location?.coordinates?.latitude ?? null;
+  const lng = artifact.longitude ?? artifact.location?.coordinates?.longitude ?? null;
+
+  const locationParts = [
+    artifact.location?.city,
+    artifact.location?.state,
+    artifact.location?.country,
+  ].filter(Boolean);
+
+  // Metadata rows for the details card
+  const metadataRows: { icon: React.ComponentType<{ className?: string }>; label: string; value: string | null }[] = [
+    {
+      icon: MapPinIcon,
+      label: "Origin",
+      value: [artifact.location?.city, artifact.location?.country]
+        .filter(Boolean)
+        .join(", ") || null,
+    },
+    { icon: CalendarIcon, label: "Period", value: artifact.age },
+    { icon: GlobeIcon, label: "Civilization", value: artifact.cultural_origin },
+    { icon: ShieldIcon, label: "Condition", value: artifact.condition },
+    {
+      icon: LayersIcon,
+      label: "Materials",
+      value: artifact.materials?.length ? artifact.materials.join(", ") : null,
+    },
+    {
+      icon: EyeIcon,
+      label: "Views",
+      value: artifact.view_count?.toLocaleString() || null,
+    },
+    {
+      icon: UserIcon,
+      label: "Submitted by",
+      value: artifact.uploader_name || "Anonymous",
+    },
+    {
+      icon: ClockIcon,
+      label: "Added",
+      value: artifact.created_at ? formatDate(artifact.created_at) : null,
+    },
+  ];
 
   return (
-    <main className="min-h-screen" style={{ backgroundColor: "#FDFAF5" }}>
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Breadcrumb */}
-        <nav className="mb-6 text-sm" style={{ color: "#8B7355" }}>
-          <Link href="/artifacts" className="hover:underline" style={{ color: "#B8860B" }}>
-            Artifact Gallery
-          </Link>
-          <span className="mx-2">/</span>
-          <span>{artifact.title}</span>
-        </nav>
-
-        {/* Two-column layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Left column — image & map */}
-          <div>
-            {/* Main image */}
-            <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-200">
-              {artifact.image_url ? (
-                <Image
-                  src={artifact.image_url}
-                  alt={artifact.title}
-                  fill
-                  priority
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  className="object-cover"
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-400">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="64"
-                    height="64"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                    <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                    <path d="M10 9H8" />
-                    <path d="M16 13H8" />
-                    <path d="M16 17H8" />
-                  </svg>
-                </div>
-              )}
-            </div>
-
-            {/* Static map */}
-            {mapSrc && (
-              <div className="mt-4 rounded-lg overflow-hidden border" style={{ borderColor: "#D4C5A9" }}>
-                <StaticMap
-                  src={mapSrc}
-                  alt={`Map showing ${artifact.title} location`}
-                />
-              </div>
-            )}
+    <main className="min-h-screen bg-background">
+      <article className="max-w-7xl mx-auto">
+        {/* ===== HERO SECTION ===== */}
+        <div className="relative">
+          {/* Back navigation */}
+          <div className="absolute top-4 left-4 z-10">
+            <Link
+              href="/artifacts"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full
+                         bg-white/80 backdrop-blur-sm text-xs font-medium
+                         text-foreground shadow-warm-sm hover:bg-white
+                         hover:shadow-warm-md transition-all duration-200"
+            >
+              <ChevronLeftIcon className="h-3.5 w-3.5" />
+              Collection
+            </Link>
           </div>
 
-          {/* Right column — metadata */}
-          <div>
-            <h1 className="text-3xl font-bold mb-2" style={{ color: "#1A1208" }}>
-              {artifact.title}
-            </h1>
-
-            <p className="text-sm mb-4" style={{ color: "#8B7355" }}>
-              {artifact.age}
-              {artifact.cultural_origin ? ` · ${artifact.cultural_origin}` : ""}
-            </p>
-
-            {/* Badges */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              {artifact.is_3d && (
-                <Badge variant="secondary" className="bg-purple-600 text-white border-none">
-                  3D
-                </Badge>
-              )}
-              <Badge
-                variant="outline"
-                className={conditionColors[artifact.condition]}
-              >
-                {artifact.condition}
-              </Badge>
-            </div>
-
-            {/* Materials */}
-            {artifact.materials.length > 0 && (
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold mb-1" style={{ color: "#1A1208" }}>
-                  Materials
-                </h3>
-                <div className="flex flex-wrap gap-1">
-                  {artifact.materials.map((material) => (
-                    <span
-                      key={material}
-                      className="text-xs px-2 py-0.5 rounded-full border"
-                      style={{
-                        backgroundColor: "#FDFAF5",
-                        borderColor: "#D4C5A9",
-                        color: "#8B7355",
-                      }}
-                    >
-                      {material}
-                    </span>
-                  ))}
-                </div>
-              </div>
+          {/* Hero image */}
+          <div className="relative h-[55vh] max-h-[500px] min-h-[300px] overflow-hidden bg-muted">
+            {artifact.image_url ? (
+              <Image
+                src={artifact.image_url}
+                alt={artifact.title}
+                fill
+                priority
+                className="object-cover"
+                sizes="100vw"
+              />
+            ) : (
+              <ArtifactPlaceholder title={artifact.title} ageColor={ageColor} />
             )}
 
-            {/* Location */}
-            {(artifact.location || artifact.country) && (
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold mb-1" style={{ color: "#1A1208" }}>
-                  Location
-                </h3>
-                <p className="text-sm" style={{ color: "#8B7355" }}>
-                  {artifact.location
-                    ? [artifact.location.city, artifact.location.state, artifact.location.country]
-                        .filter(Boolean)
-                        .join(", ") +
-                      (artifact.location.region ? ` (${artifact.location.region})` : "")
-                    : artifact.country}
+            {/* Bottom gradient for text readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/20 to-transparent" />
+
+            {/* Title overlay */}
+            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+              <div className="max-w-3xl">
+                {/* Age badge */}
+                <div
+                  className="inline-flex items-center gap-1.5 mb-3 px-2.5 py-1
+                              rounded-full text-[11px] font-medium text-white
+                              bg-white/20 backdrop-blur-sm border border-white/20"
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: ageColor }}
+                  />
+                  {artifact.age || "Period unknown"}
+                </div>
+
+                <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-2">
+                  {artifact.title}
+                </h1>
+
+                <p className="text-white/80 text-sm">
+                  {artifact.cultural_origin}
+                  {artifact.location?.country && ` · ${artifact.location.country}`}
                 </p>
               </div>
-            )}
-
-            {/* Description */}
-            {artifact.description && (
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold mb-1" style={{ color: "#1A1208" }}>
-                  Description
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: "#4A3728" }}>
-                  {artifact.description}
-                </p>
-              </div>
-            )}
-
-            {/* Tags */}
-            {artifact.tags.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold mb-2" style={{ color: "#1A1208" }}>
-                  Tags
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {artifact.tags.map((tag) => (
-                    <Link key={tag} href={`/artifacts?tag=${encodeURIComponent(tag)}`}>
-                      <Badge
-                        variant="outline"
-                        className="cursor-pointer hover:bg-gray-100 transition-colors"
-                        style={{ borderColor: "#D4C5A9", color: "#8B7355" }}
-                      >
-                        {tag}
-                      </Badge>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Uploader info */}
-            <div className="text-xs space-y-1 mb-6" style={{ color: "#8B7355" }}>
-              <p>
-                Uploaded by{" "}
-                <span className="font-medium" style={{ color: "#1A1208" }}>
-                  {artifact.uploader_name || artifact.uploader_email}
-                </span>
-              </p>
-              <p>Added {formatDate(artifact.created_at)}</p>
-              {artifact.updated_at !== artifact.created_at && (
-                <p>Updated {formatDate(artifact.updated_at)}</p>
-              )}
-              <p>{artifact.view_count} views</p>
             </div>
 
-            {/* Placeholder sections */}
+            {/* Age color accent bar */}
             <div
-              className="rounded-lg p-4 mb-4 border text-center"
-              style={{ backgroundColor: "#FFFFFF", borderColor: "#D4C5A9" }}
-            >
-              <p className="text-sm font-medium" style={{ color: "#B8860B" }}>
-                🔍 AI Analysis
-              </p>
-              <p className="text-xs mt-1" style={{ color: "#8B7355" }}>
-                Login to use AI features
-              </p>
-            </div>
-
-            <div
-              className="rounded-lg p-4 border text-center"
-              style={{ backgroundColor: "#FFFFFF", borderColor: "#D4C5A9" }}
-            >
-              <p className="text-sm font-medium" style={{ color: "#B8860B" }}>
-                🔗 Similar Artifacts
-              </p>
-              <p className="text-xs mt-1" style={{ color: "#8B7355" }}>
-                Login to use AI features
-              </p>
-            </div>
+              className="absolute top-0 left-0 right-0 h-1"
+              style={{ background: ageColor }}
+            />
           </div>
         </div>
-      </div>
+
+        {/* ===== TWO-COLUMN CONTENT ===== */}
+        <div className="px-4 sm:px-6 lg:px-8 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr,340px] gap-8">
+            {/* LEFT COLUMN — narrative content */}
+            <div className="space-y-8">
+              {/* Description */}
+              {artifact.description && (
+                <section>
+                  <h2 className="font-display text-xl font-semibold mb-4 pb-2 border-b border-secondary/40">
+                    Description
+                  </h2>
+                  <div className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                    {artifact.description}
+                  </div>
+                </section>
+              )}
+
+              {/* Tags */}
+              {artifact.tags?.length > 0 && (
+                <section>
+                  <h2 className="font-display text-xl font-semibold mb-4">Tags</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {artifact.tags.map((tag) => (
+                      <Link
+                        key={tag}
+                        href={`/artifacts?tag=${encodeURIComponent(tag)}`}
+                        className="px-3 py-1 rounded-full text-xs font-medium
+                                   bg-muted text-muted-foreground border border-secondary/60
+                                   hover:bg-primary/10 hover:text-primary
+                                   hover:border-primary/30 transition-all duration-200"
+                      >
+                        #{tag}
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* AI Analysis — Client Component */}
+              <ArtifactAISection artifactId={artifact.id} />
+            </div>
+
+            {/* RIGHT COLUMN — structured data */}
+            <aside className="space-y-6">
+              {/* Metadata Card */}
+              <div className="rounded-xl border border-secondary/40 bg-white shadow-warm-sm overflow-hidden">
+                <div className="p-4 bg-muted/30 border-b border-secondary/30">
+                  <h2 className="font-display font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+                    Artifact Details
+                  </h2>
+                </div>
+                <div className="p-4 space-y-3">
+                  {metadataRows.map(
+                    ({ icon: Icon, label, value }) =>
+                      value && (
+                        <div key={label} className="flex items-start gap-3">
+                          <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                          <div>
+                            <span className="text-[11px] uppercase tracking-wider text-muted-foreground block">
+                              {label}
+                            </span>
+                            {label === "Condition" ? (
+                              <span
+                                className={cn(
+                                  "inline-block text-xs font-medium px-2 py-0.5 rounded-full border mt-0.5",
+                                  conditionStyle.bg,
+                                  conditionStyle.text,
+                                  conditionStyle.border
+                                )}
+                              >
+                                {value}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-foreground font-medium">
+                                {value}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                  )}
+                </div>
+              </div>
+
+              {/* Location Card */}
+              <div className="rounded-xl border border-secondary/40 bg-white shadow-warm-sm overflow-hidden">
+                <div className="p-4 bg-muted/30 border-b border-secondary/30">
+                  <h2 className="font-display font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+                    Location Found
+                  </h2>
+                </div>
+                {lat && lng ? (
+                  <>
+                    <StaticMap
+                      lat={lat}
+                      lng={lng}
+                      className="w-full h-40 object-cover"
+                    />
+                    {locationParts.length > 0 && (
+                      <div className="p-3 text-xs text-muted-foreground">
+                        {locationParts.join(", ")}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="p-4 text-sm text-muted-foreground text-center">
+                    {locationParts.length > 0
+                      ? locationParts.join(", ")
+                      : "Location data not available"}
+                  </div>
+                )}
+              </div>
+
+              {/* Similar Artifacts — Client Component */}
+              <SimilarArtifactsSection artifactId={artifact.id} />
+            </aside>
+          </div>
+        </div>
+      </article>
     </main>
+  );
+}
+
+/* ===== ARTIFACT PLACEHOLDER =====
+ * Shown when artifact has no image_url.
+ * Renders a gradient div with the age color, a decorative glyph, and the title. */
+function ArtifactPlaceholder({
+  title,
+  ageColor,
+}: {
+  title: string;
+  ageColor: string;
+}) {
+  return (
+    <div
+      className="absolute inset-0 flex flex-col items-center justify-center"
+      style={{
+        background: `linear-gradient(135deg, ${ageColor}22, ${ageColor}44)`,
+      }}
+    >
+      <span className="text-6xl mb-4 opacity-60" aria-hidden="true">
+        ⚱
+      </span>
+      <span
+        className="font-display text-2xl text-center px-6 text-foreground/60"
+      >
+        {title}
+      </span>
+    </div>
   );
 }

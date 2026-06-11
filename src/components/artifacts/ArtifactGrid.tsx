@@ -1,74 +1,141 @@
+"use client";
+
+import { motion } from "framer-motion";
 import ArtifactCard from "./ArtifactCard";
 import type { Artifact } from "@/types/artifact";
 
 interface ArtifactGridProps {
   artifacts: Artifact[];
   isLoading: boolean;
+  filterKey?: string;
+  onClearFilters?: () => void;
 }
 
+// ── Framer Motion Stagger Variants ─────────────────────────────────
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.04,
+      delayChildren: 0.05,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.35, ease: [0.165, 0.84, 0.44, 1] as const },
+  },
+};
+
+// ── Warm Shimmer Skeleton ──────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div
-      className="rounded-lg overflow-hidden animate-pulse"
-      style={{ backgroundColor: "#FDFAF5", border: "1px solid #D4C5A9" }}
-    >
-      <div className="aspect-square bg-gray-200" />
+    <div className="rounded-xl overflow-hidden bg-white border border-secondary/40">
+      {/* Image skeleton — same aspect ratio as card */}
+      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+        <div className="absolute inset-0 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer" />
+      </div>
+      {/* Metadata skeleton */}
       <div className="p-3 space-y-2">
-        <div className="h-4 bg-gray-200 rounded w-3/4" />
-        <div className="h-3 bg-gray-200 rounded w-1/2" />
+        <div className="h-4 bg-muted rounded w-3/4">
+          <div className="h-full w-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer rounded" />
+        </div>
+        <div className="h-3 bg-muted rounded w-1/2">
+          <div className="h-full w-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer rounded" />
+        </div>
       </div>
     </div>
   );
 }
 
-export default function ArtifactGrid({ artifacts, isLoading }: ArtifactGridProps) {
+// ── Empty State ────────────────────────────────────────────────────
+function EmptyState({ onClearFilters }: { onClearFilters?: () => void }) {
+  return (
+    <div className="col-span-full flex flex-col items-center justify-center py-24 text-center">
+      {/* Amphora outline SVG */}
+      <svg
+        className="w-20 h-20 text-secondary mb-6"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 64 64"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {/* Amphora body */}
+        <path d="M20 8h24l-4 8v8c0 12-8 20-8 20s-8-8-8-20v-8l-4-8z" />
+        {/* Handles */}
+        <path d="M28 16c-4 4-6 12-6 12" />
+        <path d="M36 16c4 4 6 12 6 12" />
+        {/* Neck rim */}
+        <path d="M20 8c0 2 2 4 4 4h16c2 0 4-2 4-4" />
+        {/* Base */}
+        <path d="M24 48h16" />
+        <path d="M22 52h20" />
+        <path d="M24 44c-2 4-3 8-2 8h20c1 0 0-4-2-8" />
+      </svg>
+      <h3 className="font-display text-xl font-semibold text-foreground mb-2">
+        No artifacts found
+      </h3>
+      <p className="text-sm text-muted-foreground mb-6 max-w-xs">
+        Try adjusting your search or filters to discover more of the
+        world's archaeological heritage.
+      </p>
+      {onClearFilters && (
+        <button
+          onClick={onClearFilters}
+          className="inline-flex items-center justify-center rounded-full border border-secondary/60 bg-background px-4 py-2 text-xs font-medium text-foreground hover:bg-muted hover:shadow-warm-sm transition-all duration-200"
+        >
+          Clear all filters
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Main Component ─────────────────────────────────────────────────
+export default function ArtifactGrid({
+  artifacts,
+  isLoading,
+  filterKey,
+  onClearFilters,
+}: ArtifactGridProps) {
+  // Loading state — 12 skeleton cards
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {Array.from({ length: 12 }).map((_, i) => (
-          <SkeletonCard key={i} />
+          <SkeletonCard key={`skeleton-${i}`} />
         ))}
       </div>
     );
   }
 
+  // Empty state
   if (artifacts.length === 0) {
-    return (
-      <div className="text-center py-16">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="64"
-          height="64"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="mx-auto mb-4"
-          style={{ color: "#D4C5A9" }}
-        >
-          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-          <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-          <path d="M10 9H8" />
-          <path d="M16 13H8" />
-          <path d="M16 17H8" />
-        </svg>
-        <h3 className="text-lg font-semibold" style={{ color: "#1A1208" }}>
-          No artifacts found
-        </h3>
-        <p className="text-sm mt-1" style={{ color: "#8B7355" }}>
-          Try adjusting your filters or check back later for new additions.
-        </p>
-      </div>
-    );
+    return <EmptyState onClearFilters={onClearFilters} />;
   }
 
+  // Populated state with stagger animation
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <motion.div
+      key={filterKey ?? "grid"}
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+    >
       {artifacts.map((artifact) => (
-        <ArtifactCard key={artifact.id} artifact={artifact} />
+        <motion.div key={artifact.id} variants={itemVariants}>
+          <ArtifactCard artifact={artifact} />
+        </motion.div>
       ))}
-    </div>
+    </motion.div>
   );
 }

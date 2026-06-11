@@ -45,6 +45,11 @@
     --color-text: #1A1208;
     --color-accent: #8B4513;
     --color-border: #D4C5A9;
+    --age-ancient: #B8860B;
+    --age-medieval: #722F37;
+    --age-early-modern: #2D5A27;
+    --age-modern: #4A6FA5;
+    --age-unknown: #888780;
   }
   .dark {
     --background: oklch(0.145 0 0);
@@ -88,6 +93,9 @@
   html {
     @apply font-sans;
   }
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+  }
 }
 
 @keyframes spin {
@@ -97,4 +105,155 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes grain {
+  0%, 100% { transform: translate(0, 0); }
+  10%  { transform: translate(-1%, -2%); }
+  20%  { transform: translate(2%, -1%); }
+  30%  { transform: translate(-2%, 1%); }
+  40%  { transform: translate(1%, 2%); }
+  50%  { transform: translate(-1%, 1%); }
+  60%  { transform: translate(2%, -2%); }
+  70%  { transform: translate(-1%, -1%); }
+  80%  { transform: translate(1%, 1%); }
+  90%  { transform: translate(2%, 2%); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-golden {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(184, 134, 11, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(184, 134, 11, 0.4);
+  }
+}
+
+.animate-pulse-golden {
+  animation: pulse-golden 2s ease-in-out infinite;
+}
+
+/* Parchment grain texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  z-index: 999;
+  pointer-events: none;
+  opacity: 0.028;
+  animation: grain 8s steps(10) infinite;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='512' height='512' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  background-size: 512px 512px;
+}
+
+/* Custom scrollbar — warm palette */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #F0EBE0; }
+::-webkit-scrollbar-thumb {
+  background: #D4C5A9;
+  border-radius: 4px;
+  border: 2px solid #F0EBE0;
+}
+::-webkit-scrollbar-thumb:hover { background: #B8860B; }
+
+/* Smooth scrolling */
+html { scroll-behavior: smooth; }
+
+/* Selection color */
+::selection {
+  background: rgba(184, 134, 11, 0.20);
+  color: #1A1A2E;
+}
+
+/* Focus visible — golden glow */
+:focus-visible {
+  outline: 2px solid #B8860B;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Remove default focus for mouse users */
+:focus:not(:focus-visible) { outline: none; }
+
+/* Prose styles for artifact descriptions */
+.prose-archaeological {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: hsl(var(--foreground));
+}
+
+.prose-archaeological p {
+  margin-bottom: 0.75em;
+}
+
+.prose-archaeological strong {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+/* Custom scrollbar for the detail panel */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(184, 134, 11, 0.2);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(184, 134, 11, 0.4);
+}
+
+/* Map loading — fade-in-up for artifacts */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out forwards;
+}
+
+/* Reduced motion — respect user preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  body::before { animation: none; }
 }

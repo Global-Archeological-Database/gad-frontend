@@ -1,9 +1,9 @@
 'use client';
 
 import { APIProvider, Map } from '@vis.gl/react-google-maps';
-import { useMemo, useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { Search, Plus, X, Loader2 } from 'lucide-react';
+import { useMemo, useState, useCallback } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { Plus, Loader2 } from 'lucide-react';
 import { useArtifacts } from '@/hooks/useArtifacts';
 import { useMapStore } from '@/store/mapStore';
 import { useAuthStore } from '@/store/authStore';
@@ -12,6 +12,7 @@ import ArtifactMarker from '@/components/map/ArtifactMarker';
 import ArtifactInfoWindow from '@/components/map/ArtifactInfoWindow';
 import ArtifactDetailPanel from '@/components/artifacts/ArtifactDetailPanel';
 import ArtifactSubmitForm from '@/components/artifacts/ArtifactSubmitForm';
+import MapSearchBar from '@/components/map/MapSearchBar';
 
 const MAP_STYLE = [
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
@@ -31,7 +32,6 @@ const MAP_STYLE = [
 ];
 
 export default function MapExplorer() {
-  const router = useRouter();
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
   const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 
@@ -45,34 +45,36 @@ export default function MapExplorer() {
   // ── Search state ──────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Debounce search input — 400ms delay
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setDebouncedQuery(searchQuery.trim());
-    }, 400);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [searchQuery]);
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    setDebouncedQuery(query);
+  }, []);
 
-  // Clear search
-  const handleClearSearch = () => {
-    setSearchQuery('');
-    setDebouncedQuery('');
-  };
-
-  // ── Artifact fetching ─────────────────────────────────────────
-  // Pass `q` param only when there's an active search query
-  const filters = debouncedQuery ? { q: debouncedQuery } : undefined;
-  const { data, isLoading, isFetching } = useArtifacts(filters);
+  // ── Artifact fetching (no server-side search) ─────────────────
+  const { data, isLoading } = useArtifacts();
 
   const artifacts = data?.artifacts ?? [];
-  const isSearching = isFetching && !!debouncedQuery;
-  const hasSearched = !!debouncedQuery && !isFetching;
-  const noResults = hasSearched && artifacts.length === 0;
+
+  // ── Client-side search filtering ──────────────────────────────
+  const filteredArtifacts = useMemo(() => {
+    if (!debouncedQuery) return artifacts;
+    const query = debouncedQuery.toLowerCase();
+    return artifacts.filter((a) => {
+      const searchable = [
+        a.title,
+        a.cultural_origin,
+        a.location?.country,
+        a.country,
+        ...(a.tags || []),
+      ]
+        .filter((s): s is string => typeof s === 'string')
+        .map((s) => s.toLowerCase());
+      return searchable.some((s) => s.includes(query));
+    });
+  }, [artifacts, debouncedQuery]);
+
+  const isFilterActive = debouncedQuery.length > 0 && artifacts.length > 0;
 
   const selectedArtifact = useMemo(
     () => artifacts.find((a) => a.id === selectedArtifactId) ?? null,
@@ -98,36 +100,39 @@ export default function MapExplorer() {
 
   return (
     <APIProvider apiKey={apiKey}>
-      <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          height: 'calc(100vh - 64px)',
-        }}
-      >
+      <div className="relative w-full h-[100dvh] overflow-hidden">
         {/* Map */}
         <Map
-          defaultCenter={{ lat: 20, lng: 0 }}
+          defaultCenter={{ lat: 30, lng: 10 }}
           defaultZoom={3}
           gestureHandling="greedy"
-          disableDefaultUI={false}
+          disableDefaultUI={true}
           styles={MAP_STYLE}
           mapTypeControl={false}
           streetViewControl={false}
           fullscreenControl={false}
+          zoomControl={false}
           mapId={mapId}
-          style={{ width: '100%', height: '100%' }}
+          className="w-full h-full"
         >
-          {artifacts.map((artifact) => (
-            <ArtifactMarker
-              key={artifact.id}
-              artifact={artifact}
-              onClick={() => handleMarkerClick(artifact.id)}
-            />
-          ))}
+          {artifacts.map((artifact) => {
+            const isSelected = artifact.id === selectedArtifactId;
+            const isDimmed =
+              isFilterActive &&
+              !filteredArtifacts.some((a) => a.id === artifact.id);
+            return (
+              <ArtifactMarker
+                key={artifact.id}
+                artifact={artifact}
+                onClick={() => handleMarkerClick(artifact.id)}
+                isSelected={isSelected}
+                isDimmed={isDimmed}
+              />
+            );
+          })}
 
           {/* InfoWindow for selected artifact */}
-          {selectedArtifact && (
+          {selectedArtifact && !isDetailPanelOpen && (
             <ArtifactInfoWindow
               artifact={selectedArtifact}
               onClose={handleInfoWindowClose}
@@ -137,157 +142,42 @@ export default function MapExplorer() {
         </Map>
 
         {/* Search bar — floating top-center */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 16,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 10,
-            width: '90%',
-            maxWidth: 400,
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '10px 16px',
-              backgroundColor: '#FFFFFF',
-              borderRadius: 999,
-              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-              border: '1px solid #D4C5A9',
-            }}
-          >
-            <Search size={18} color="#888780" />
-            <input
-              type="text"
-              placeholder="Search artifacts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                flex: 1,
-                border: 'none',
-                outline: 'none',
-                fontSize: 14,
-                color: '#1A1208',
-                backgroundColor: 'transparent',
-                fontFamily: 'inherit',
-              }}
-            />
-            {/* Clear button — visible when there's input */}
-            {searchQuery && (
-              <button
-                onClick={handleClearSearch}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 0,
-                  color: '#888780',
-                }}
-                aria-label="Clear search"
-              >
-                <X size={16} />
-              </button>
-            )}
-            {/* Loading spinner — visible while search is in flight */}
-            {isSearching && (
-              <Loader2
-                size={16}
-                color="#888780"
-                style={{ animation: 'spin 1s linear infinite' }}
-              />
-            )}
-          </div>
-
-          {/* No results message */}
-          {noResults && (
-            <div
-              style={{
-                marginTop: 8,
-                padding: '10px 16px',
-                backgroundColor: '#FFFFFF',
-                borderRadius: 12,
-                boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                border: '1px solid #D4C5A9',
-                textAlign: 'center',
-                fontSize: 14,
-                color: '#888780',
-              }}
-            >
-              No artifacts found for &ldquo;{debouncedQuery}&rdquo;
-            </div>
-          )}
-        </div>
-
-        {/* "+" FAB — bottom-right, visible to all users */}
-        <button
-          onClick={() => {
-            if (user) {
-              setIsSubmitFormOpen(true);
-            } else {
-              router.push('/login');
-            }
-          }}
-          style={{
-            position: 'absolute',
-            bottom: 24,
-            right: 24,
-            zIndex: 10,
-            width: 48,
-            height: 48,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#B8860B',
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: '50%',
-            boxShadow: '0 4px 12px rgba(184,134,11,0.4)',
-            cursor: 'pointer',
-            transition: 'transform 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.transform = 'scale(1.1)';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
-          }}
-          title={user ? 'Submit an artifact' : 'Sign in to submit an artifact'}
-        >
-          <Plus size={24} />
-        </button>
+        <MapSearchBar
+          onSearch={handleSearch}
+          totalCount={artifacts.length}
+          filteredCount={filteredArtifacts.length}
+          isFilterActive={isFilterActive}
+          isLoading={isLoading}
+        />
 
         {/* Loading indicator */}
         {isLoading && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 16,
-              right: 16,
-              zIndex: 10,
-              padding: '6px 12px',
-              backgroundColor: 'rgba(255,255,255,0.9)',
-              borderRadius: 6,
-              fontSize: 12,
-              color: '#888780',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            }}
-          >
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-warm-sm text-xs text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
             Loading artifacts...
           </div>
         )}
 
+        {/* "+" FAB — only when authenticated */}
+        {user && (
+          <button
+            onClick={() => setIsSubmitFormOpen(true)}
+            className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-warm-xl hover:shadow-golden bg-primary hover:bg-primary/90 transition-all duration-300 hover:scale-110 active:scale-95 flex items-center justify-center"
+            aria-label="Submit new artifact"
+          >
+            <Plus className="h-6 w-6 text-primary-foreground" />
+          </button>
+        )}
+
         {/* Detail Panel */}
-        <ArtifactDetailPanel
-          artifactId={isDetailPanelOpen ? selectedArtifactId : null}
-          onClose={handleDetailPanelClose}
-        />
+        <AnimatePresence>
+          {isDetailPanelOpen && selectedArtifactId && (
+            <ArtifactDetailPanel
+              artifactId={selectedArtifactId}
+              onClose={handleDetailPanelClose}
+            />
+          )}
+        </AnimatePresence>
 
         {/* Submit Form Sheet */}
         <ArtifactSubmitForm />
