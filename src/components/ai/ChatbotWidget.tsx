@@ -2,201 +2,388 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Send, X } from 'lucide-react';
-import { useAuthStore } from '@/store/authStore';
+import { Sparkles, X, SendHorizonal, Trash2 } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { useUiStore } from '@/store/uiStore';
 import { aiApi } from '@/lib/api';
 import ChatMessage from '@/components/ai/ChatMessage';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet';
 
+/* ────────────────────────────────────────────
+   Types
+   ──────────────────────────────────────────── */
+interface Message {
+  role: 'user' | 'model';
+  content: string;
+  failed?: boolean;
+}
+
+/* ────────────────────────────────────────────
+   Typing Indicator
+   ──────────────────────────────────────────── */
 function TypingIndicator() {
   return (
-    <div className="flex justify-start">
-      <div className="flex flex-col max-w-[80%]">
-        <span className="text-xs text-[#8B7355] mb-1 ml-1">GAD</span>
-        <div className="bg-[#FDFAF5] text-[#1A1208] rounded-2xl rounded-bl-md p-4">
-          <div className="flex items-center gap-1">
+    <div className="flex gap-3">
+      <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+        <Sparkles className="h-3 w-3 text-primary" />
+      </div>
+      <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3">
+        <div className="flex gap-1.5 items-center h-4">
+          {[0, 1, 2].map((i) => (
             <motion.span
-              className="w-2 h-2 bg-[#8B7355] rounded-full inline-block"
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+              key={i}
+              className="w-1.5 h-1.5 rounded-full bg-muted-foreground"
+              animate={{ y: [0, -4, 0] }}
+              transition={{
+                duration: 0.8,
+                repeat: Infinity,
+                delay: i * 0.15,
+                ease: 'easeInOut',
+              }}
             />
-            <motion.span
-              className="w-2 h-2 bg-[#8B7355] rounded-full inline-block"
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }}
-            />
-            <motion.span
-              className="w-2 h-2 bg-[#8B7355] rounded-full inline-block"
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 0.6, repeat: Infinity, delay: 0.3 }}
-            />
-          </div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
+/* ────────────────────────────────────────────
+   Welcome Message
+   ──────────────────────────────────────────── */
+function WelcomeMessage() {
+  return (
+    <div className="flex gap-3">
+      <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center shrink-0 mt-0.5">
+        <Sparkles className="h-3 w-3 text-primary" />
+      </div>
+      <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5 max-w-[85%]">
+        <p className="text-sm text-foreground leading-relaxed">
+          Welcome! I'm your archaeological research assistant. I can help you
+          understand artifacts, historical periods, ancient civilizations, and
+          archaeological methods. What would you like to explore?
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────
+   Quick Action Chips
+   ──────────────────────────────────────────── */
+const QUICK_ACTIONS = [
+  'Bronze Age artifacts',
+  'Dating techniques',
+  'Roman civilization',
+  'Pottery identification',
+];
+
+function QuickActions({ onSelect }: { onSelect: (action: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2 ml-9">
+      {QUICK_ACTIONS.map((action) => (
+        <button
+          key={action}
+          onClick={() => onSelect(action)}
+          className="text-[11px] px-2.5 py-1 rounded-full border border-secondary
+                     text-muted-foreground hover:border-primary/40
+                     hover:text-primary hover:bg-primary/5
+                     transition-all duration-200"
+        >
+          {action}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────
+   Chatbot Widget
+   ──────────────────────────────────────────── */
 export default function ChatbotWidget() {
-  const user = useAuthStore((state) => state.user);
+  const pathname = usePathname();
   const isChatOpen = useUiStore((s) => s.isChatOpen);
   const setIsChatOpen = useUiStore((s) => s.setIsChatOpen);
+  const isSubmitFormOpen = useUiStore((s) => s.isSubmitFormOpen);
 
-  const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
-  const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  /* ── Auto-scroll to bottom ── */
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isTyping]);
+
+  /* ── Close chat on navigation ── */
+  useEffect(() => {
+    setIsChatOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  /* ── Focus input when chat opens ── */
+  useEffect(() => {
+    if (isChatOpen) {
+      // Small delay so the panel animation doesn't fight the focus
+      const timer = setTimeout(() => inputRef.current?.focus(), 250);
+      return () => clearTimeout(timer);
+    }
+  }, [isChatOpen]);
+
+  /* ── Escape key closes chat ── */
+  useEffect(() => {
+    if (!isChatOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsChatOpen(false);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [isChatOpen, setIsChatOpen]);
+
+  /* ── Send message ── */
+  const sendMessage = useCallback(
+    async (text?: string) => {
+      const content = (text ?? input).trim();
+      if (!content || isTyping) return;
+
+      const userMessage: Message = { role: 'user', content };
+      const updatedMessages = [...messages, userMessage];
+      setMessages(updatedMessages);
+      setInput('');
+      setIsTyping(true);
+
+      try {
+        const convertedHistory = updatedMessages.map((msg) => ({
+          role: msg.role,
+          parts: [{ text: msg.content }],
+        }));
+
+        const response = await aiApi.chat(convertedHistory, content);
+        setMessages((prev) => [
+          ...prev,
+          { role: 'model', content: response.reply },
+        ]);
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'model',
+            content:
+              'I apologize, but I encountered an error processing your request. Please try again.',
+            failed: true,
+          },
+        ]);
+      } finally {
+        setIsTyping(false);
+      }
+    },
+    [input, isTyping, messages],
+  );
+
+  /* ── Clear conversation ── */
+  const clearChat = useCallback(() => {
+    setMessages([]);
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading, scrollToBottom]);
+  /* ── Input change handler with auto-resize ── */
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    if (value.length <= 2000) {
+      setInput(value);
+    }
+    // Auto-resize
+    e.target.style.height = 'auto';
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 128)}px`;
+  };
 
-  const handleSend = async () => {
-    const trimmed = inputValue.trim();
-    if (!trimmed || isLoading) return;
-
-    const userMessage = { role: 'user' as const, content: trimmed };
-    const updatedMessages = [...messages, userMessage];
-
-    setMessages(updatedMessages);
-    setInputValue('');
-    setIsLoading(true);
-
-    try {
-      // Trim conversation history if it exceeds 20 messages
-      let historyForApi = updatedMessages;
-      if (updatedMessages.length > 20) {
-        historyForApi = updatedMessages.slice(4);
-        setMessages(historyForApi);
-      }
-
-      // Convert {role, content} to {role, parts: [{text}]} format for Gemini API
-      const convertedHistory = historyForApi.map((msg) => ({
-        role: msg.role,
-        parts: [{ text: msg.content }],
-      }));
-
-      const response = await aiApi.chat(convertedHistory, trimmed);
-      setMessages((prev) => [
-        ...prev,
-        { role: 'model', content: response.reply },
-      ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'model',
-          content:
-            'I apologize, but I encountered an error processing your request. Please try again.',
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
+  /* ── Key handlers ── */
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSend();
-    }
-  };
+  /* ── Position logic ──
+      If Submit FAB is open, offset the trigger button to the left.
+      The panel always positions relative to the trigger. */
+  const triggerPosition = isSubmitFormOpen
+    ? 'bottom-24 right-6'
+    : 'bottom-6 right-6';
 
+  /* ── Render ── */
   return (
     <>
-      {/* Floating button */}
+      {/* ── Floating Trigger Button ── */}
       <button
         onClick={() => setIsChatOpen(!isChatOpen)}
-        className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-xl bg-[#B8860B] text-white shadow-lg hover:shadow-xl transition-shadow hover:opacity-90 cursor-pointer flex items-center justify-center"
-        aria-label="Open chat"
+        aria-label={isChatOpen ? 'Close chat' : 'Open archaeological assistant'}
+        className={[
+          'fixed z-50 w-14 h-14 rounded-full',
+          'flex items-center justify-center',
+          'bg-gradient-to-br from-[#C4971A] to-[#8B6914]',
+          'shadow-warm-xl hover:shadow-golden',
+          'transition-all duration-300',
+          'hover:scale-110 active:scale-95',
+          isChatOpen ? 'rotate-0' : 'animate-pulse-golden',
+          triggerPosition,
+        ].join(' ')}
       >
-        <MessageSquare size={22} />
+        {isChatOpen ? (
+          <motion.div
+            initial={{ rotate: -90, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            transition={{ duration: 0.2 }}
+          >
+            <X className="h-5 w-5 text-white" />
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ rotate: 90, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Sparkles className="h-5 w-5 text-white" />
+          </motion.div>
+        )}
       </button>
 
-      {/* Chat sheet */}
-      <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
-        <SheetContent
-          side="right"
-          showCloseButton={false}
-          className="w-[400px] max-w-[100vw] p-0 flex flex-col"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#D4C5A9] shrink-0">
-            <SheetHeader className="p-0">
-              <SheetTitle className="text-lg font-semibold text-[#1A1208]">
-                GAD Archaeological Assistant
-              </SheetTitle>
-              <SheetDescription className="sr-only">
-                AI-powered archaeological research assistant chat
-              </SheetDescription>
-            </SheetHeader>
-            <button
-              onClick={() => setIsChatOpen(false)}
-              className="p-1 rounded-md hover:bg-[#D4C5A9]/30 transition-colors cursor-pointer text-[#8B7355]"
-              aria-label="Close chat"
+      {/* ── Chat Panel ── */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="fixed bottom-24 right-6 z-40
+                       w-[min(380px,calc(100vw-24px))]
+                       h-[min(560px,calc(100vh-120px))]
+                       rounded-2xl bg-background border border-secondary/50
+                       shadow-warm-2xl overflow-hidden flex flex-col"
+          >
+            {/* ── Header ── */}
+            <div
+              className="flex items-center justify-between px-4 py-3
+                          border-b border-secondary/40 bg-muted/20"
             >
-              <X size={20} />
-            </button>
-          </div>
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-8 h-8 rounded-full bg-gradient-to-br
+                              from-[#C4971A] to-[#8B6914]
+                              flex items-center justify-center"
+                >
+                  <Sparkles className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-display font-semibold text-sm text-foreground">
+                    Archaeological Assistant
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground">
+                    Powered by Gemini AI
+                  </p>
+                </div>
+              </div>
 
-          {/* Messages area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.length === 0 ? (
-              <ChatMessage
-                role="model"
-                content="Hello! I'm your archaeological research assistant. Ask me about artifacts, historical periods, ancient civilizations, or anything in the database."
-                index={0}
-              />
-            ) : (
-              messages.map((msg, i) => (
-                <ChatMessage
-                  key={i}
-                  role={msg.role as 'user' | 'model'}
-                  content={msg.content}
-                  index={i}
-                />
-              ))
-            )}
-
-            {isLoading && <TypingIndicator />}
-
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input area */}
-          <div className="border-t border-[#D4C5A9] p-4 shrink-0">
-            <div className="flex items-center gap-2">
-              <input
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask about artifacts, history..."
-                className="flex-1 px-3 py-2 rounded-lg border border-[#D4C5A9] bg-[#FDFAF5] text-sm text-[#1A1208] placeholder:text-[#8B7355] focus:outline-none focus:ring-2 focus:ring-[#B8860B]/50 focus:border-[#B8860B]"
-                disabled={isLoading}
-              />
-              <button
-                onClick={handleSend}
-                disabled={!inputValue.trim() || isLoading}
-                className="p-2.5 rounded-lg bg-[#B8860B] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity cursor-pointer shrink-0"
-                aria-label="Send message"
-              >
-                <Send size={18} />
-              </button>
+              <div className="flex items-center gap-1">
+                {/* Clear chat button */}
+                {messages.length > 1 && (
+                  <button
+                    onClick={clearChat}
+                    className="p-1.5 rounded-lg text-muted-foreground
+                               hover:text-foreground hover:bg-muted
+                               transition-colors duration-150"
+                    aria-label="Clear conversation"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        </SheetContent>
-      </Sheet>
+
+            {/* ── Message List ── */}
+            <div
+              ref={scrollRef}
+              className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth"
+            >
+              {/* Welcome message — always first */}
+              <WelcomeMessage />
+
+              {/* Quick action chips — hide after first user message */}
+              {messages.length === 0 && (
+                <QuickActions onSelect={sendMessage} />
+              )}
+
+              {/* Messages */}
+              {messages.map((msg, idx) => (
+                <ChatMessage
+                  key={idx}
+                  role={msg.role}
+                  content={msg.content}
+                  index={idx}
+                />
+              ))}
+
+              {/* Typing indicator */}
+              {isTyping && <TypingIndicator />}
+
+              {/* Scroll anchor */}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* ── Input Area ── */}
+            <div className="border-t border-secondary/40 p-3">
+              <div className="flex items-end gap-2">
+                <div className="flex-1 relative">
+                  <textarea
+                    ref={inputRef}
+                    value={input}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ask about archaeological history..."
+                    rows={1}
+                    className="w-full resize-none rounded-xl border border-secondary/60
+                               bg-muted/30 px-3.5 py-2.5 text-sm
+                               placeholder:text-muted-foreground
+                               focus:border-primary/40 focus:bg-background
+                               focus:ring-2 focus:ring-primary/15
+                               transition-all duration-200
+                               max-h-32 overflow-y-auto"
+                    style={{ minHeight: '40px' }}
+                  />
+                  {input.length > 1800 && (
+                    <span className="absolute bottom-2 right-2 text-[10px] text-muted-foreground">
+                      {input.length}/2000
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => sendMessage()}
+                  disabled={!input.trim() || isTyping}
+                  aria-label="Send message"
+                  className={[
+                    'h-10 w-10 rounded-xl flex items-center justify-center',
+                    'transition-all duration-200',
+                    input.trim() && !isTyping
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-golden-sm'
+                      : 'bg-muted text-muted-foreground cursor-not-allowed',
+                  ].join(' ')}
+                >
+                  <SendHorizonal className="h-4 w-4" />
+                </button>
+              </div>
+
+              <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                Enter to send &middot; Shift+Enter for new line
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

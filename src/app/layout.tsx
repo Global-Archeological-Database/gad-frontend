@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Header from "@/components/layout/Header";
 import AuthProvider from "@/components/auth/AuthProvider";
 import ChatbotWidget from "@/components/ai/ChatbotWidget";
+import PageTransition from "@/components/layout/PageTransition";
+import Footer from "@/components/layout/Footer";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({
@@ -52,11 +54,12 @@ export default function RootLayout({
           <Providers>
             <AuthProvider>
               <Header />
-              {children}
+              <PageTransition>{children}</PageTransition>
               <ChatbotWidget />
             </AuthProvider>
           </Providers>
         </TooltipProvider>
+        <Footer />
         <Toaster
           position="bottom-right"
           toastOptions={{
@@ -65,6 +68,7 @@ export default function RootLayout({
               border: '1px solid #D4C5A9',
               color: '#1A1208',
             },
+            className: 'sonner-toast',
           }}
         />
       </body>

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Upload, FileIcon, X, ImageIcon } from 'lucide-react';
+import { UploadCloudIcon, X, FileIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { artifactsApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -16,7 +17,8 @@ const ACCEPTED_TYPES = {
   model: '.glb,.gltf,model/gltf-binary',
 } as const;
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE_IMAGE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE_MODEL = 200 * 1024 * 1024; // 200MB
 
 export default function ImageUploader({
   artifactId,
@@ -31,29 +33,33 @@ export default function ImageUploader({
   const [isDragOver, setIsDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const isImage = fileType === 'image';
+  const maxSize = isImage ? MAX_FILE_SIZE_IMAGE : MAX_FILE_SIZE_MODEL;
+
   // Generate preview for images
   useEffect(() => {
     if (!file) {
       setPreview(null);
       return;
     }
-    if (fileType === 'image') {
+    if (isImage) {
       const url = URL.createObjectURL(file);
       setPreview(url);
       return () => URL.revokeObjectURL(url);
     }
     setPreview(null);
-  }, [file, fileType]);
+  }, [file, isImage]);
 
   const validateFile = useCallback(
     (f: File): string | null => {
-      if (f.size > MAX_FILE_SIZE) {
-        return 'File size exceeds 50MB limit.';
+      if (f.size > maxSize) {
+        const mb = maxSize / 1024 / 1024;
+        return `File size exceeds ${mb}MB limit.`;
       }
-      if (fileType === 'image') {
+      if (isImage) {
         const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
         if (!allowed.includes(f.type)) {
-          return 'Invalid image type. Accepted: JPEG, PNG, WebP, GIF.';
+          return 'Invalid image type. Accepted: JPG, PNG, WebP, GIF.';
         }
       } else {
         const allowedExts = ['.glb', '.gltf'];
@@ -64,7 +70,7 @@ export default function ImageUploader({
       }
       return null;
     },
-    [fileType]
+    [isImage, maxSize]
   );
 
   const handleFile = useCallback(
@@ -72,6 +78,7 @@ export default function ImageUploader({
       const validationError = validateFile(f);
       if (validationError) {
         setError(validationError);
+        toast.error(validationError);
         return;
       }
       setError(null);
@@ -101,7 +108,7 @@ export default function ImageUploader({
 
   const uploadFile = useCallback(async () => {
     if (!file) return;
-    if (!artifactId) return; // Wait for artifact to be created
+    if (!artifactId) return;
 
     setUploading(true);
     setError(null);
@@ -132,19 +139,21 @@ export default function ImageUploader({
             reject(new Error(`Upload failed with status ${xhr.status}`));
           }
         };
-        xhr.onerror = () => reject(new Error('Upload failed'));
+        xhr.onerror = () => reject(new Error('Network error during upload. Please check your connection.'));
         xhr.send(file);
       });
 
       onUploadComplete(publicUrl);
+      toast.success(`${isImage ? 'Image' : '3D Model'} uploaded successfully`);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Upload failed. Please try again.'
-      );
+      const message =
+        err instanceof Error ? err.message : 'Upload failed. Please try again.';
+      setError(message);
+      toast.error(message);
     } finally {
       setUploading(false);
     }
-  }, [file, artifactId, onUploadComplete]);
+  }, [file, artifactId, onUploadComplete, isImage]);
 
   // Auto-upload when artifactId becomes available
   useEffect(() => {
@@ -161,10 +170,11 @@ export default function ImageUploader({
     if (inputRef.current) inputRef.current.value = '';
   };
 
-  const isImage = fileType === 'image';
+  const hasFile = file !== null;
 
   return (
     <div className="space-y-2">
+      {/* Upload zone */}
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -172,35 +182,39 @@ export default function ImageUploader({
         }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
-        onClick={() => !file && inputRef.current?.click()}
+        onClick={() => !hasFile && !uploading && inputRef.current?.click()}
         className={cn(
-          'relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors',
-          isDragOver
-            ? 'border-primary bg-primary/5'
-            : 'border-border hover:border-muted-foreground/50',
-          file && 'pointer-events-none'
+          'rounded-xl border-2 border-dashed p-6 text-center transition-all duration-200',
+          isDragOver && 'border-primary bg-primary/5 scale-[1.01]',
+          hasFile && !uploading && 'border-primary/40 bg-primary/5',
+          !isDragOver && !hasFile && 'border-secondary hover:border-secondary-foreground/30 cursor-pointer'
         )}
       >
-        {!file ? (
-          <>
-            {isImage ? (
-              <ImageIcon className="mb-2 size-8 text-muted-foreground" />
-            ) : (
-              <Upload className="mb-2 size-8 text-muted-foreground" />
-            )}
-            <p className="text-sm text-muted-foreground">
-              {isImage
-                ? 'Drop an image here or click to browse'
-                : 'Drop a 3D model here or click to browse'}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {isImage
-                ? 'JPEG, PNG, WebP, GIF — max 50MB'
-                : 'GLB, GLTF — max 50MB'}
-            </p>
-          </>
-        ) : (
-          <div className="flex w-full items-center gap-3">
+        {uploading ? (
+          /* Circular SVG progress indicator */
+          <div className="flex flex-col items-center gap-3">
+            <svg className="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
+              <circle
+                cx="24" cy="24" r="20"
+                fill="none" stroke="#F0EBE0"
+                strokeWidth="3"
+              />
+              <circle
+                cx="24" cy="24" r="20"
+                fill="none" stroke="#B8860B"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray={`${2 * Math.PI * 20}`}
+                strokeDashoffset={`${2 * Math.PI * 20 * (1 - progress / 100)}`}
+                style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+              />
+            </svg>
+            <span className="text-sm font-medium text-foreground">{progress}%</span>
+            <p className="text-xs text-muted-foreground">{file?.name}</p>
+          </div>
+        ) : hasFile ? (
+          /* Preview: thumbnail + filename + size + X button */
+          <div className="flex w-full items-center gap-3 text-left">
             {isImage && preview ? (
               <div className="relative size-16 shrink-0 overflow-hidden rounded-md">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -216,24 +230,37 @@ export default function ImageUploader({
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{file.name}</p>
+              <p className="truncate text-sm font-medium">{file?.name}</p>
               <p className="text-xs text-muted-foreground">
-                {(file.size / 1024 / 1024).toFixed(2)} MB
+                {file ? (file.size / 1024 / 1024).toFixed(2) : '0'} MB
               </p>
             </div>
-            {!uploading && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  clearFile();
-                }}
-                className="shrink-0 rounded-full p-1 hover:bg-muted transition-colors"
-              >
-                <X size={16} />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                clearFile();
+              }}
+              className="shrink-0 rounded-full p-1 hover:bg-muted transition-colors"
+            >
+              <X size={16} />
+            </button>
           </div>
+        ) : (
+          /* Empty state */
+          <>
+            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mx-auto mb-3">
+              <UploadCloudIcon className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm text-foreground font-medium">
+              {isImage
+                ? 'Drop artifact photograph here'
+                : 'Drop 3D model here'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isImage ? 'or click to browse' : 'GLB or GLTF format'}
+            </p>
+          </>
         )}
 
         <input
@@ -244,22 +271,6 @@ export default function ImageUploader({
           className="hidden"
         />
       </div>
-
-      {/* Progress bar */}
-      {uploading && (
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Uploading...</span>
-            <span>{progress}%</span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-      )}
 
       {/* Error */}
       {error && (

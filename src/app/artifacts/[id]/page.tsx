@@ -195,7 +195,7 @@ export default async function ArtifactDetailPage({ params }: PageProps) {
                 alt={artifact.title}
                 fill
                 priority
-                className="object-cover"
+                className="object-cover image-blur-load"
                 sizes="100vw"
               />
             ) : (
@@ -279,7 +279,10 @@ export default async function ArtifactDetailPage({ params }: PageProps) {
               )}
 
               {/* AI Analysis — Client Component */}
-              <ArtifactAISection artifactId={artifact.id} />
+              <ArtifactAISection
+                artifactId={artifact.id}
+                existingAnalysis={artifact.ai_analysis}
+              />
             </div>
 
             {/* RIGHT COLUMN — structured data */}

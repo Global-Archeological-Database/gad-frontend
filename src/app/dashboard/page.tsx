@@ -2,12 +2,22 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Pencil, Trash2 } from 'lucide-react';
+import {
+  DatabaseIcon,
+  SparklesIcon,
+  GlobeIcon,
+  EyeIcon,
+  PlusIcon,
+  PencilIcon,
+  Trash2Icon,
+  ArchiveIcon,
+} from 'lucide-react';
 
 import AuthGuard from '@/components/auth/AuthGuard';
-import ArtifactGrid from '@/components/artifacts/ArtifactGrid';
+import ArtifactCard from '@/components/artifacts/ArtifactCard';
 import ArtifactSubmitForm from '@/components/artifacts/ArtifactSubmitForm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,107 +40,282 @@ import { artifactsApi, authApi } from '@/lib/api';
 import { artifactKeys } from '@/hooks/useArtifacts';
 import type { Artifact } from '@/types/artifact';
 
-/* ─── Dashboard Artifact Card (with Edit/Delete overlays) ─── */
-function DashboardArtifactCard({
-  artifact,
+/* ─── Helpers ─── */
+
+function formatDate(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+function getUniqueCountries(artifacts: Artifact[]): number {
+  const countries = new Set<string>();
+  artifacts.forEach((a) => {
+    const c = a.location?.country || a.country;
+    if (c) countries.add(c);
+  });
+  return countries.size;
+}
+
+/* ─── WelcomeHeader ─── */
+
+function WelcomeHeader({ user }: { user: NonNullable<ReturnType<typeof useAuthStore.getState>['user']> }) {
+  const initial = (user.display_name || user.email)[0].toUpperCase();
+
+  return (
+    <div className="flex items-center gap-4 mb-8 pb-8 border-b border-secondary/40">
+      {/* Avatar */}
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-[#8B6914] flex items-center justify-center shadow-warm-md text-white font-display font-bold text-2xl">
+        {initial}
+      </div>
+
+      <div>
+        <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
+          {user.display_name ? `${user.display_name}'s Collection` : 'My Collection'}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Member since {formatDate(user.created_at)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ─── StatsRow ─── */
+
+interface StatItem {
+  label: string;
+  value: number;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+}
+
+function StatsRow({ artifacts }: { artifacts: Artifact[] }) {
+  const totalArtifacts = artifacts.length;
+  const analyzed = artifacts.filter((a) => a.ai_analysis).length;
+  const uniqueCountries = getUniqueCountries(artifacts);
+  const totalViews = artifacts.reduce((sum, a) => sum + (a.view_count || 0), 0);
+
+  const stats: StatItem[] = [
+    { label: 'Total Artifacts', value: totalArtifacts, icon: DatabaseIcon, color: 'bg-primary/10 text-primary' },
+    { label: 'With AI Analysis', value: analyzed, icon: SparklesIcon, color: 'bg-primary/10 text-primary' },
+    { label: 'Countries', value: uniqueCountries, icon: GlobeIcon, color: 'bg-primary/10 text-primary' },
+    { label: 'Total Views', value: totalViews, icon: EyeIcon, color: 'bg-primary/10 text-primary' },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      {stats.map(({ label, value, icon: Icon, color }) => (
+        <div
+          key={label}
+          className="rounded-xl border border-secondary/40 bg-white p-4 shadow-warm-xs"
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-2xl font-display font-bold text-foreground">
+                {value}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+            </div>
+            <div className={`w-8 h-8 rounded-lg ${color} flex items-center justify-center`}>
+              <Icon className="h-4 w-4" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── UserArtifactGrid ─── */
+
+function UserArtifactGrid({
+  artifacts,
   onEdit,
   onDelete,
 }: {
-  artifact: Artifact;
+  artifacts: Artifact[];
   onEdit: (a: Artifact) => void;
   onDelete: (a: Artifact) => void;
 }) {
-  return (
-    <div className="relative group">
-      {/* The card itself is wrapped in a div so overlays can be positioned */}
-      <div className="block rounded-lg overflow-hidden transition-shadow duration-300 group-hover:shadow-lg"
-        style={{ backgroundColor: "#FDFAF5", border: "1px solid #D4C5A9" }}
-      >
-        {/* Image area */}
-        <div className="relative aspect-square overflow-hidden bg-gray-200">
-          {artifact.image_url ? (
-            <img
-              src={artifact.image_url}
-              alt={artifact.title}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full bg-gray-100 text-gray-400">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="48"
-                height="48"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                <path d="M10 9H8" />
-                <path d="M16 13H8" />
-                <path d="M16 17H8" />
-              </svg>
-            </div>
-          )}
+  if (artifacts.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-16 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+          <ArchiveIcon className="h-8 w-8 text-muted-foreground" />
         </div>
+        <h3 className="font-display text-lg font-semibold mb-1">
+          Your collection awaits
+        </h3>
+        <p className="text-sm text-muted-foreground mb-4 max-w-xs">
+          You haven't submitted any artifacts yet. Every great collection
+          starts with a single find.
+        </p>
+        <Link
+          href="/submit"
+          className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 h-8 gap-1.5 px-2.5 text-sm font-medium whitespace-nowrap transition-all shadow-warm-sm"
+        >
+          Submit Your First Artifact
+        </Link>
+      </div>
+    );
+  }
 
-        {/* Content area */}
-        <div className="p-3 space-y-1">
-          <h3 className="font-semibold text-sm truncate" style={{ color: "#1A1208" }}>
-            {artifact.title}
-          </h3>
-          <p className="text-xs" style={{ color: "#8B7355" }}>
-            {artifact.age}
-            {artifact.cultural_origin ? ` · ${artifact.cultural_origin}` : ''}
-          </p>
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {artifacts.map((artifact) => (
+        <div key={artifact.id} className="group relative">
+          <ArtifactCard artifact={artifact} />
+
+          {/* Edit/Delete overlay — visible on group-hover */}
+          <div className="absolute top-2 left-2 right-2 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <button
+              onClick={() => onEdit(artifact)}
+              className="p-1.5 rounded-lg bg-white/90 backdrop-blur-sm shadow-warm-sm text-foreground hover:bg-white transition-all duration-150 hover:shadow-warm-md"
+              aria-label="Edit artifact"
+            >
+              <PencilIcon className="h-3.5 w-3.5" />
+            </button>
+
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <button
+                    className="p-1.5 rounded-lg bg-white/90 backdrop-blur-sm shadow-warm-sm text-destructive hover:bg-destructive/10 transition-all duration-150"
+                    aria-label="Delete artifact"
+                  >
+                    <Trash2Icon className="h-3.5 w-3.5" />
+                  </button>
+                }
+              />
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="font-display">
+                    Delete &ldquo;{artifact.title}&rdquo;?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove this artifact from the database.
+                    This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => onDelete(artifact)}
+                    className="bg-destructive hover:bg-destructive/90"
+                  >
+                    Delete Artifact
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── ProfileSettings ─── */
+
+function ProfileSettings({ user }: { user: NonNullable<ReturnType<typeof useAuthStore.getState>['user']> }) {
+  const [displayName, setDisplayName] = useState(user.display_name ?? '');
+  const [showNamePublicly, setShowNamePublicly] = useState(
+    user.settings?.show_name_publicly ?? true
+  );
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await authApi.updateProfile({
+        display_name: displayName,
+        settings: { show_name_publicly: showNamePublicly },
+      });
+      const updatedProfile = await authApi.getProfile();
+      useAuthStore.getState().setUser(updatedProfile);
+      toast.success('Profile updated successfully');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update profile';
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-secondary/40 bg-white shadow-warm-xs overflow-hidden sticky top-20">
+      {/* Header */}
+      <div className="px-4 py-3 bg-muted/20 border-b border-secondary/30">
+        <h2 className="font-display font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+          Profile Settings
+        </h2>
       </div>
 
-      {/* Overlay action buttons — visible on hover */}
-      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button
-          variant="secondary"
-          size="icon-sm"
-          className="bg-white/90 hover:bg-white shadow-sm"
-          onClick={() => onEdit(artifact)}
-          aria-label="Edit artifact"
-        >
-          <Pencil className="size-3.5" />
-        </Button>
-        <Button
-          variant="destructive"
-          size="icon-sm"
-          className="bg-red-500/90 hover:bg-red-600 shadow-sm text-white"
-          onClick={() => onDelete(artifact)}
-          aria-label="Delete artifact"
-        >
-          <Trash2 className="size-3.5" />
-        </Button>
+      <div className="p-4 space-y-4">
+        {/* Display Name */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+            Display Name
+          </Label>
+          <div className="flex gap-2">
+            <Input
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className="h-9 text-sm"
+              placeholder="Your name"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSave}
+              disabled={displayName === user.display_name || saving}
+              className="h-9 shrink-0"
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Show name publicly toggle */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-foreground">Public name</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Show your name on submitted artifacts
+            </p>
+          </div>
+          <Switch
+            checked={showNamePublicly}
+            onCheckedChange={setShowNamePublicly}
+            className="data-[state=checked]:bg-primary shrink-0 mt-0.5"
+          />
+        </div>
+
+        <div className="pt-2 border-t border-secondary/30">
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Email: </span>
+            {user.email}
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
 /* ─── Dashboard Page ─── */
+
 export default function DashboardPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const setIsSubmitFormOpen = useUiStore((s) => s.setIsSubmitFormOpen);
-
-  // Profile form state
-  const [displayName, setDisplayName] = useState(user?.display_name ?? '');
-  const [showNamePublicly, setShowNamePublicly] = useState(
-    user?.settings?.show_name_publicly ?? true
-  );
-  const [profileSaving, setProfileSaving] = useState(false);
-
-  // Delete dialog state
-  const [deleteTarget, setDeleteTarget] = useState<Artifact | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Edit state — which artifact is being edited
   const [editingArtifact, setEditingArtifact] = useState<Artifact | null>(null);
@@ -146,10 +331,6 @@ export default function DashboardPage() {
   const myArtifacts = myArtifactsQuery.data?.artifacts ?? [];
   const isLoadingArtifacts = myArtifactsQuery.isLoading;
 
-  // Stats
-  const totalArtifacts = myArtifacts.length;
-  const withAnalysis = myArtifacts.filter((a) => a.ai_analysis).length;
-
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: (id: string) => artifactsApi.delete(id),
@@ -161,236 +342,84 @@ export default function DashboardPage() {
       const message = err instanceof Error ? err.message : 'Failed to delete artifact';
       toast.error(message);
     },
-    onSettled: () => {
-      setDeleteTarget(null);
-      setDeleteDialogOpen(false);
-    },
   });
 
-  const handleDeleteConfirm = () => {
-    if (deleteTarget) {
-      deleteMutation.mutate(deleteTarget.id);
-    }
+  const handleDelete = (artifact: Artifact) => {
+    deleteMutation.mutate(artifact.id);
   };
 
-  const handleDeleteClick = (artifact: Artifact) => {
-    setDeleteTarget(artifact);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleEditClick = (artifact: Artifact) => {
+  const handleEdit = (artifact: Artifact) => {
     setEditingArtifact(artifact);
     setIsSubmitFormOpen(true);
   };
 
-  // Profile save
-  const handleProfileSave = async () => {
-    setProfileSaving(true);
-    try {
-      await authApi.updateProfile({
-        display_name: displayName,
-        settings: {
-          show_name_publicly: showNamePublicly,
-        },
-      });
-      // Refresh user profile in auth store
-      const updatedProfile = await authApi.getProfile();
-      useAuthStore.getState().setUser(updatedProfile);
-      toast.success('Profile updated successfully');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update profile';
-      toast.error(message);
-    } finally {
-      setProfileSaving(false);
-    }
-  };
+  if (!user) return null;
 
   return (
     <AuthGuard>
-      <main className="min-h-screen pt-16" style={{ backgroundColor: '#FDFAF5' }}>
-        <div className="max-w-7xl mx-auto px-4 py-8 space-y-10">
-          {/* ── Welcome Heading ── */}
-          <div>
-            <h1 className="text-3xl font-bold" style={{ color: '#1A1208' }}>
-              Welcome, {user?.display_name || user?.email || 'Explorer'}
-            </h1>
-            <p className="text-sm mt-1" style={{ color: '#8B7355' }}>
-              Manage your artifacts and profile settings.
-            </p>
-          </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome section */}
+        <WelcomeHeader user={user} />
 
-          {/* ── Account Stats ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div
-              className="rounded-lg border p-4"
-              style={{ backgroundColor: '#FFFFFF', borderColor: '#D4C5A9' }}
-            >
-              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: '#8B7355' }}>
-                Total Artifacts
-              </p>
-              <p className="text-2xl font-bold mt-1" style={{ color: '#1A1208' }}>
-                {totalArtifacts}
-              </p>
-            </div>
-            <div
-              className="rounded-lg border p-4"
-              style={{ backgroundColor: '#FFFFFF', borderColor: '#D4C5A9' }}
-            >
-              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: '#8B7355' }}>
-                With AI Analysis
-              </p>
-              <p className="text-2xl font-bold mt-1" style={{ color: '#1A1208' }}>
-                {withAnalysis}
-              </p>
-            </div>
-            <div
-              className="rounded-lg border p-4"
-              style={{ backgroundColor: '#FFFFFF', borderColor: '#D4C5A9' }}
-            >
-              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: '#8B7355' }}>
-                Pending Analysis
-              </p>
-              <p className="text-2xl font-bold mt-1" style={{ color: '#1A1208' }}>
-                {totalArtifacts - withAnalysis}
-              </p>
-            </div>
-          </div>
+        {/* Stats row */}
+        <StatsRow artifacts={myArtifacts} />
 
-          {/* ── My Artifacts ── */}
+        {/* Main content — 2 columns on lg */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr,320px] gap-8 mt-8">
+          {/* Left: User's artifacts */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold" style={{ color: '#1A1208' }}>
+              <h2 className="font-display text-xl font-semibold">
                 My Artifacts
               </h2>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-[#B8860B] border-[#D4C5A9]"
-                onClick={() => router.push('/submit')}
+              <Link
+                href="/submit"
+                className="inline-flex items-center justify-center rounded-lg border border-primary/30 text-primary hover:bg-primary/5 h-8 gap-1.5 px-2.5 text-sm font-medium whitespace-nowrap transition-all"
               >
-                + New Artifact
-              </Button>
+                <PlusIcon className="h-4 w-4" />
+                Add Artifact
+              </Link>
             </div>
 
             {isLoadingArtifacts ? (
-              <ArtifactGrid artifacts={[]} isLoading={true} />
-            ) : myArtifacts.length === 0 ? (
-              <div className="text-center py-16">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="64"
-                  height="64"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="mx-auto mb-4"
-                  style={{ color: '#D4C5A9' }}
-                >
-                  <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                  <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                  <path d="M10 9H8" />
-                  <path d="M16 13H8" />
-                  <path d="M16 17H8" />
-                </svg>
-                <h3 className="text-lg font-semibold" style={{ color: '#1A1208' }}>
-                  No artifacts yet
-                </h3>
-                <p className="text-sm mt-1" style={{ color: '#8B7355' }}>
-                  Start by submitting your first artifact.
-                </p>
-                <Button
-                  className="mt-4"
-                  style={{ backgroundColor: '#B8860B' }}
-                  onClick={() => router.push('/submit')}
-                >
-                  Submit Artifact
-                </Button>
-              </div>
-            ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {myArtifacts.map((artifact) => (
-                  <DashboardArtifactCard
-                    key={artifact.id}
-                    artifact={artifact}
-                    onEdit={handleEditClick}
-                    onDelete={handleDeleteClick}
-                  />
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div
+                    key={`skeleton-${i}`}
+                    className="rounded-xl overflow-hidden bg-white border border-secondary/40"
+                  >
+                    <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                      <div className="absolute inset-0 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer" />
+                    </div>
+                    <div className="p-3 space-y-2">
+                      <div className="h-4 bg-muted rounded w-3/4">
+                        <div className="h-full w-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer rounded" />
+                      </div>
+                      <div className="h-3 bg-muted rounded w-1/2">
+                        <div className="h-full w-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer rounded" />
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
+            ) : (
+              <UserArtifactGrid
+                artifacts={myArtifacts}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
             )}
           </section>
 
-          {/* ── Profile Settings ── */}
-          <section>
-            <h2 className="text-xl font-semibold mb-4" style={{ color: '#1A1208' }}>
-              Profile Settings
-            </h2>
-            <div
-              className="rounded-lg border p-6 max-w-md space-y-4"
-              style={{ backgroundColor: '#FFFFFF', borderColor: '#D4C5A9' }}
-            >
-              {/* Display Name */}
-              <div className="space-y-1">
-                <Label htmlFor="display-name">Display Name</Label>
-                <Input
-                  id="display-name"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Your display name"
-                />
-              </div>
-
-              {/* Show Name Publicly toggle */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="show-name-publicly">Show name publicly</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Display your name on artifact cards you upload.
-                  </p>
-                </div>
-                <Switch
-                  id="show-name-publicly"
-                  checked={showNamePublicly}
-                  onCheckedChange={(checked) => setShowNamePublicly(checked)}
-                />
-              </div>
-
-              <Button
-                onClick={handleProfileSave}
-                disabled={profileSaving}
-                style={{ backgroundColor: '#B8860B' }}
-                className="text-white"
-              >
-                {profileSaving ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </div>
-          </section>
+          {/* Right: Profile settings */}
+          <aside>
+            <ProfileSettings user={user} />
+          </aside>
         </div>
       </main>
 
       {/* Edit Artifact Form (reuses the submit form via Sheet) */}
       {editingArtifact && <ArtifactSubmitForm />}
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete &ldquo;{deleteTarget?.title}&rdquo;. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>
-              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </AuthGuard>
   );
 }

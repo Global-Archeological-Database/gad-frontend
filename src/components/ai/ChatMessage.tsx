@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { Sparkles } from 'lucide-react';
 
 interface ChatMessageProps {
   role: 'user' | 'model';
@@ -13,25 +14,29 @@ export default function ChatMessage({ role, content, index }: ChatMessageProps) 
 
   return (
     <motion.div
-      layoutId={index !== undefined ? `chat-message-${index}` : undefined}
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
       className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
     >
-      <div className="flex flex-col max-w-[80%]">
-        {!isUser && (
-          <span className="text-xs text-[#8B7355] mb-1 ml-1">GAD</span>
-        )}
-        <div
-          className={`p-3 whitespace-pre-wrap ${
-            isUser
-              ? 'bg-[#B8860B] text-[#FFFFFF] rounded-2xl rounded-br-md'
-              : 'bg-[#FDFAF5] text-[#1A1208] rounded-2xl rounded-bl-md'
-          }`}
-        >
-          {content}
+      {isUser ? (
+        /* User message — right-aligned */
+        <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3.5 py-2.5 max-w-[85%]">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
         </div>
-      </div>
+      ) : (
+        /* AI message — left-aligned with avatar */
+        <div className="flex gap-3 max-w-[85%]">
+          <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center shrink-0 mt-0.5">
+            <Sparkles className="h-3 w-3 text-primary" />
+          </div>
+          <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5">
+            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+              {content}
+            </p>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }

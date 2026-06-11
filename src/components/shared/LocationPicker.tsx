@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MapPinIcon } from 'lucide-react';
 
 export interface LocationValue {
   latitude: number;
@@ -117,6 +118,7 @@ export default function LocationPicker({
     city: '',
     region: '',
   });
+  const [reverseGeocode, setReverseGeocode] = useState<string | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -131,6 +133,9 @@ export default function LocationPicker({
   const handleReverseGeocodeResult = useCallback(
     (data: Omit<LocationData, 'latitude' | 'longitude'>) => {
       setLocationData(data);
+      // Build a human-readable reverse geocode string
+      const parts = [data.city, data.state, data.country].filter(Boolean);
+      setReverseGeocode(parts.length > 0 ? parts.join(', ') : null);
       if (value) {
         onChange({ ...value, ...data });
       }
@@ -174,20 +179,18 @@ export default function LocationPicker({
 
   return (
     <APIProvider apiKey={apiKey}>
-      <div className="space-y-3">
-        {/* Map */}
+      <div className="space-y-4">
+        {/* Map — 280px height, rounded-xl, no street view */}
         <div
-          style={{ height: 250, width: '100%', borderRadius: 8, overflow: 'hidden' }}
-          className="border border-border"
+          className="rounded-xl overflow-hidden border border-secondary/40 shadow-warm-sm"
+          style={{ height: '280px' }}
         >
           <Map
             defaultCenter={DEFAULT_CENTER}
             defaultZoom={3}
             gestureHandling="greedy"
-            disableDefaultUI={false}
-            mapTypeControl={false}
+            disableDefaultUI
             streetViewControl={false}
-            fullscreenControl={false}
             mapId={mapId}
             style={{ width: '100%', height: '100%' }}
             center={currentPosition ?? DEFAULT_CENTER}
@@ -195,7 +198,13 @@ export default function LocationPicker({
           >
             <MapClickHandler onMapClick={handleMapClick} />
             {currentPosition && (
-              <AdvancedMarker position={currentPosition} />
+              <AdvancedMarker position={currentPosition}>
+                <Pin
+                  background={'#B8860B'}
+                  borderColor={'#8B4513'}
+                  glyphColor={'#FDFAF5'}
+                />
+              </AdvancedMarker>
             )}
             {currentPosition && (
               <ReverseGeocoder
@@ -207,49 +216,85 @@ export default function LocationPicker({
           </Map>
         </div>
 
-        {/* Coordinate inputs */}
+        {/* Reverse geocode description */}
+        {reverseGeocode && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-secondary/30">
+            <MapPinIcon className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm text-foreground">{reverseGeocode}</span>
+          </div>
+        )}
+
+        {/* Coordinate inputs — 2 columns */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <Label htmlFor="loc-lat">Latitude</Label>
+            <Label className="text-xs text-muted-foreground">Latitude</Label>
             <Input
-              id="loc-lat"
               type="number"
-              step="any"
-              placeholder="e.g. 48.8566"
+              step="0.000001"
               value={latInput}
               onChange={(e) => handleCoordInput('lat', e.target.value)}
+              className="text-sm font-mono"
+              placeholder="40.7128"
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="loc-lng">Longitude</Label>
+            <Label className="text-xs text-muted-foreground">Longitude</Label>
             <Input
-              id="loc-lng"
               type="number"
-              step="any"
-              placeholder="e.g. 2.3522"
+              step="0.000001"
               value={lngInput}
               onChange={(e) => handleCoordInput('lng', e.target.value)}
+              className="text-sm font-mono"
+              placeholder="-74.0060"
             />
           </div>
         </div>
 
-        {/* Read-only location fields */}
+        {/* Editable location hierarchy fields */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <Label>Country</Label>
-            <Input value={locationData.country} readOnly className="bg-muted/50" />
+            <Label className="text-xs text-muted-foreground">Country</Label>
+            <Input
+              value={locationData.country}
+              onChange={(e) => {
+                const newData = { ...locationData, country: e.target.value };
+                setLocationData(newData);
+                if (value) onChange({ ...value, ...newData });
+              }}
+            />
           </div>
           <div className="space-y-1">
-            <Label>State</Label>
-            <Input value={locationData.state} readOnly className="bg-muted/50" />
+            <Label className="text-xs text-muted-foreground">Region</Label>
+            <Input
+              value={locationData.region}
+              onChange={(e) => {
+                const newData = { ...locationData, region: e.target.value };
+                setLocationData(newData);
+                if (value) onChange({ ...value, ...newData });
+              }}
+            />
           </div>
           <div className="space-y-1">
-            <Label>City</Label>
-            <Input value={locationData.city} readOnly className="bg-muted/50" />
+            <Label className="text-xs text-muted-foreground">State / Province</Label>
+            <Input
+              value={locationData.state}
+              onChange={(e) => {
+                const newData = { ...locationData, state: e.target.value };
+                setLocationData(newData);
+                if (value) onChange({ ...value, ...newData });
+              }}
+            />
           </div>
           <div className="space-y-1">
-            <Label>Region</Label>
-            <Input value={locationData.region} readOnly className="bg-muted/50" />
+            <Label className="text-xs text-muted-foreground">City / Locality</Label>
+            <Input
+              value={locationData.city}
+              onChange={(e) => {
+                const newData = { ...locationData, city: e.target.value };
+                setLocationData(newData);
+                if (value) onChange({ ...value, ...newData });
+              }}
+            />
           </div>
         </div>
       </div>

@@ -122,7 +122,7 @@ export default function ArtifactDetailPanel({
                     src={artifact.image_url}
                     alt={artifact.title}
                     fill
-                    className="object-cover"
+                    className="object-cover image-blur-load"
                     sizes="(max-width: 480px) 100vw, 480px"
                     priority
                   />

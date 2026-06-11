@@ -248,6 +248,53 @@ html { scroll-behavior: smooth; }
   animation: fade-in-up 0.4s ease-out forwards;
 }
 
+/* Button press effect — applied via component class */
+.button-press {
+  transition: transform 0.15s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+.button-press:active {
+  transform: scale(0.97);
+}
+
+/* Sonner toast warm styling */
+.sonner-toast {
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+.sonner-toast[data-type="success"] {
+  border-color: #2D5A27 !important;
+}
+.sonner-toast[data-type="success"] [data-icon] {
+  color: #2D5A27 !important;
+}
+.sonner-toast[data-type="error"] {
+  border-color: #8B4513 !important;
+}
+.sonner-toast[data-type="error"] [data-icon] {
+  color: #8B4513 !important;
+}
+
+/* Image blur-to-sharp transition */
+.image-blur-load {
+  transition: opacity 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+.image-blur-load:not(.loaded) {
+  opacity: 0;
+  filter: blur(4px);
+}
+.image-blur-load.loaded {
+  opacity: 1;
+  filter: blur(0);
+}
+
+/* Card hover lift */
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(184, 134, 11, 0.12);
+}
+
 /* Reduced motion — respect user preference */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -256,4 +303,6 @@ html { scroll-behavior: smooth; }
     transition-duration: 0.01ms !important;
   }
   body::before { animation: none; }
+  .button-press:active { transform: none; }
+  .card-hover:hover { transform: none; }
 }

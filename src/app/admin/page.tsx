@@ -1,13 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Trash2 } from 'lucide-react';
+import {
+  ShieldIcon,
+  UsersIcon,
+  ArchiveIcon,
+  FlagIcon,
+  ActivityIcon,
+  SearchIcon,
+  ExternalLinkIcon,
+} from 'lucide-react';
+import Link from 'next/link';
 
 import AuthGuard from '@/components/auth/AuthGuard';
-import ArtifactGrid from '@/components/artifacts/ArtifactGrid';
+import ArtifactCard from '@/components/artifacts/ArtifactCard';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -31,13 +42,228 @@ import { useAuthStore } from '@/store/authStore';
 import { adminApi, artifactsApi } from '@/lib/api';
 import { artifactKeys } from '@/hooks/useArtifacts';
 import { formatDate } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type { Artifact } from '@/types/artifact';
 import type { UserProfile } from '@/types/user';
 
-/* ─── Users Tab ─── */
-function UsersTab() {
-  const currentUser = useAuthStore((s) => s.user);
+/* ─── Quick Stats ─── */
 
+interface StatItem {
+  label: string;
+  value: number;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+}
+
+function QuickStats({
+  userCount,
+  artifactCount,
+}: {
+  userCount: number;
+  artifactCount: number;
+}) {
+  const stats: StatItem[] = [
+    {
+      label: 'Total Users',
+      value: userCount,
+      icon: UsersIcon,
+      color: 'bg-primary/10 text-primary',
+    },
+    {
+      label: 'Total Artifacts',
+      value: artifactCount,
+      icon: ArchiveIcon,
+      color: 'bg-primary/10 text-primary',
+    },
+    {
+      label: 'Reported',
+      value: 0,
+      icon: FlagIcon,
+      color: 'bg-destructive/10 text-destructive',
+    },
+    {
+      label: "Today's Activity",
+      value: 0,
+      icon: ActivityIcon,
+      color: 'bg-primary/10 text-primary',
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      {stats.map(({ label, value, icon: Icon, color }) => (
+        <div
+          key={label}
+          className="rounded-xl border border-secondary/40 bg-white p-4 shadow-warm-xs"
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-2xl font-display font-bold text-foreground">
+                {value}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+            </div>
+            <div
+              className={cn(
+                'w-8 h-8 rounded-lg flex items-center justify-center',
+                color,
+              )}
+            >
+              <Icon className="h-4 w-4" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Users Table ─── */
+
+function UsersTable({
+  users,
+  onRoleChange,
+}: {
+  users: UserProfile[];
+  onRoleChange: (uid: string, role: 'user' | 'admin') => void;
+}) {
+  const currentUser = useAuthStore((s) => s.user);
+  const [search, setSearch] = useState('');
+
+  const filteredUsers = useMemo(() => {
+    if (!search.trim()) return users;
+    const q = search.toLowerCase();
+    return users.filter(
+      (u) =>
+        u.email.toLowerCase().includes(q) ||
+        (u.display_name && u.display_name.toLowerCase().includes(q)),
+    );
+  }, [users, search]);
+
+  return (
+    <div className="rounded-xl border border-secondary/40 overflow-hidden shadow-warm-xs bg-white">
+      {/* Table search */}
+      <div className="p-4 border-b border-secondary/30 flex items-center gap-3">
+        <div className="relative flex-1 max-w-xs">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search users..."
+            className="pl-8 h-8 text-sm"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-secondary/30 bg-muted/30">
+              <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                User
+              </th>
+              <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Role
+              </th>
+              <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Joined
+              </th>
+              <th className="text-right px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredUsers.map((user, idx) => (
+              <tr
+                key={user.uid}
+                className={cn(
+                  'border-b border-secondary/20 transition-colors',
+                  idx % 2 === 0 ? 'bg-white' : 'bg-muted/10',
+                  'hover:bg-muted/20',
+                )}
+              >
+                {/* User column */}
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
+                      {(user.display_name || user.email)[0].toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {user.display_name || 'No name set'}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {user.email}
+                      </p>
+                    </div>
+                  </div>
+                </td>
+
+                {/* Role column */}
+                <td className="px-4 py-3">
+                  <Select
+                    value={user.role}
+                    onValueChange={(role) =>
+                      onRoleChange(user.uid, role as 'user' | 'admin')
+                    }
+                    disabled={user.uid === currentUser?.uid}
+                  >
+                    <SelectTrigger
+                      className={cn(
+                        'h-7 text-xs w-24 rounded-full border',
+                        user.role === 'admin'
+                          ? 'border-primary/40 bg-primary/5 text-primary'
+                          : 'border-secondary text-muted-foreground',
+                      )}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">User</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </td>
+
+                {/* Joined column */}
+                <td className="px-4 py-3 text-xs text-muted-foreground">
+                  {formatDate(user.created_at)}
+                </td>
+
+                {/* Actions column */}
+                <td className="px-4 py-3 text-right">
+                  {user.uid !== currentUser?.uid && (
+                    <Link
+                      href={`/artifacts?uploader=${user.uid}`}
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      View artifacts
+                      <ExternalLinkIcon className="h-3 w-3" />
+                    </Link>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {filteredUsers.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-sm text-muted-foreground">
+            {search ? 'No users match your search.' : 'No users found.'}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Users Tab ─── */
+
+function UsersTab() {
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'users'],
     queryFn: () => adminApi.listUsers(),
@@ -54,103 +280,62 @@ function UsersTab() {
       toast.success('User role updated successfully');
     },
     onError: (err) => {
-      const message = err instanceof Error ? err.message : 'Failed to update role';
+      const message =
+        err instanceof Error ? err.message : 'Failed to update role';
       toast.error(message);
     },
   });
 
   const users = data?.users ?? [];
 
+  const handleRoleChange = (uid: string, role: 'user' | 'admin') => {
+    updateRoleMutation.mutate({ uid, role });
+  };
+
   if (isLoading) {
     return (
       <div className="text-center py-12">
-        <p className="text-sm" style={{ color: '#8B7355' }}>Loading users...</p>
+        <p className="text-sm text-muted-foreground">Loading users...</p>
+      </div>
+    );
+  }
+
+  return <UsersTable users={users} onRoleChange={handleRoleChange} />;
+}
+
+/* ─── Admin Artifacts Grid ─── */
+
+function AdminArtifactsGrid({
+  artifacts,
+  onDelete,
+}: {
+  artifacts: Artifact[];
+  onDelete: (artifact: Artifact) => void;
+}) {
+  if (artifacts.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <p className="text-sm text-muted-foreground">No artifacts found.</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm" style={{ color: '#1A1208' }}>
-        <thead>
-          <tr className="border-b" style={{ borderColor: '#D4C5A9' }}>
-            <th className="text-left py-3 px-4 font-medium">Email</th>
-            <th className="text-left py-3 px-4 font-medium">Display Name</th>
-            <th className="text-left py-3 px-4 font-medium">Role</th>
-            <th className="text-left py-3 px-4 font-medium">Created</th>
-            <th className="text-left py-3 px-4 font-medium">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((u: UserProfile) => {
-            const isSelf = u.uid === currentUser?.uid;
-            return (
-              <tr
-                key={u.uid}
-                className="border-b transition-colors hover:bg-[#F5F0E8]"
-                style={{ borderColor: '#D4C5A9' }}
-              >
-                <td className="py-3 px-4">{u.email}</td>
-                <td className="py-3 px-4">{u.display_name || '—'}</td>
-                <td className="py-3 px-4">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      u.role === 'admin'
-                        ? 'bg-purple-100 text-purple-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {u.role}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-xs" style={{ color: '#8B7355' }}>
-                  {formatDate(u.created_at)}
-                </td>
-                <td className="py-3 px-4">
-                  <div className="flex items-center gap-2">
-                    <Select
-                      value={u.role}
-                      onValueChange={(val) => {
-                        if (!isSelf && (val === 'user' || val === 'admin')) {
-                          updateRoleMutation.mutate({ uid: u.uid, role: val });
-                        }
-                      }}
-                      disabled={isSelf}
-                    >
-                      <SelectTrigger
-                        className="w-28"
-                        data-disabled={isSelf || undefined}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="user">user</SelectItem>
-                        <SelectItem value="admin">admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {isSelf && (
-                      <span className="text-xs italic" style={{ color: '#8B7355' }}>
-                        (you)
-                      </span>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-
-      {users.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-sm" style={{ color: '#8B7355' }}>No users found.</p>
-        </div>
-      )}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {artifacts.map((artifact) => (
+        <ArtifactCard
+          key={artifact.id}
+          artifact={artifact}
+          adminMode
+          onDelete={onDelete}
+        />
+      ))}
     </div>
   );
 }
 
 /* ─── All Artifacts Tab ─── */
+
 function AllArtifactsTab() {
   const queryClient = useQueryClient();
 
@@ -170,7 +355,8 @@ function AllArtifactsTab() {
       toast.success('Artifact deleted by admin');
     },
     onError: (err) => {
-      const message = err instanceof Error ? err.message : 'Failed to delete artifact';
+      const message =
+        err instanceof Error ? err.message : 'Failed to delete artifact';
       toast.error(message);
     },
     onSettled: () => {
@@ -195,102 +381,54 @@ function AllArtifactsTab() {
 
   return (
     <div>
-      <p className="text-sm mb-4" style={{ color: '#8B7355' }}>
-        Total artifacts: <strong style={{ color: '#1A1208' }}>{count}</strong>
-      </p>
-
       {isLoading ? (
-        <ArtifactGrid artifacts={[]} isLoading={true} />
-      ) : artifacts.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-sm" style={{ color: '#8B7355' }}>No artifacts found.</p>
-        </div>
-      ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {artifacts.map((artifact: Artifact) => (
-            <div key={artifact.id} className="relative group">
-              {/* Reuse the card look but without Link wrapper */}
-              <div
-                className="block rounded-lg overflow-hidden transition-shadow duration-300 group-hover:shadow-lg"
-                style={{ backgroundColor: '#FDFAF5', border: '1px solid #D4C5A9' }}
-              >
-                {/* Image area */}
-                <div className="relative aspect-square overflow-hidden bg-gray-200">
-                  {artifact.image_url ? (
-                    <img
-                      src={artifact.image_url}
-                      alt={artifact.title}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full bg-gray-100 text-gray-400">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="48"
-                        height="48"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                        <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                        <path d="M10 9H8" />
-                        <path d="M16 13H8" />
-                        <path d="M16 17H8" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-
-                {/* Content area */}
-                <div className="p-3 space-y-1">
-                  <h3 className="font-semibold text-sm truncate" style={{ color: '#1A1208' }}>
-                    {artifact.title}
-                  </h3>
-                  <p className="text-xs" style={{ color: '#8B7355' }}>
-                    {artifact.age}
-                    {artifact.cultural_origin ? ` · ${artifact.cultural_origin}` : ''}
-                  </p>
-                  <p className="text-xs truncate" style={{ color: '#8B7355' }}>
-                    by {artifact.uploader_name || artifact.uploader_email}
-                  </p>
-                </div>
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div
+              key={`skeleton-${i}`}
+              className="rounded-xl overflow-hidden bg-white border border-secondary/40"
+            >
+              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                <div className="absolute inset-0 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer" />
               </div>
-
-              {/* Delete button overlay */}
-              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
-                  variant="destructive"
-                  size="icon-sm"
-                  className="bg-red-500/90 hover:bg-red-600 shadow-sm text-white"
-                  onClick={() => handleDeleteClick(artifact)}
-                  aria-label="Delete artifact"
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
+              <div className="p-3 space-y-2">
+                <div className="h-4 bg-muted rounded w-3/4">
+                  <div className="h-full w-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer rounded" />
+                </div>
+                <div className="h-3 bg-muted rounded w-1/2">
+                  <div className="h-full w-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer rounded" />
+                </div>
               </div>
             </div>
           ))}
         </div>
+      ) : (
+        <AdminArtifactsGrid
+          artifacts={artifacts}
+          onDelete={handleDeleteClick}
+        />
       )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Artifact</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">
+              Delete &ldquo;{deleteTarget?.title}&rdquo;?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete &ldquo;{deleteTarget?.title}&rdquo; uploaded by{' '}
-              {deleteTarget?.uploader_name || deleteTarget?.uploader_email}. This action cannot be undone.
+              This will permanently remove this artifact uploaded by{' '}
+              {deleteTarget?.uploader_name || deleteTarget?.uploader_email}.
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>
-              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete Artifact'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -300,35 +438,76 @@ function AllArtifactsTab() {
 }
 
 /* ─── Admin Page ─── */
+
 export default function AdminPage() {
+  // Fetch users count for stats
+  const { data: usersData } = useQuery({
+    queryKey: ['admin', 'users'],
+    queryFn: () => adminApi.listUsers(),
+    staleTime: 30000,
+  });
+
+  // Fetch artifacts count for stats
+  const { data: artifactsData } = useQuery({
+    queryKey: artifactKeys.list({ limit: '1' }),
+    queryFn: () => artifactsApi.list({ limit: '1' }),
+    staleTime: 30000,
+  });
+
+  const userCount = usersData?.users?.length ?? 0;
+  const artifactCount = artifactsData?.count ?? 0;
+
   return (
     <AuthGuard requireAdmin>
-      <main className="min-h-screen pt-16" style={{ backgroundColor: '#FDFAF5' }}>
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <h1 className="text-3xl font-bold mb-6" style={{ color: '#1A1208' }}>
-            Admin Panel
-          </h1>
-
-          <Tabs defaultValue="users" className="w-full">
-            <TabsList className="mb-6">
-              <TabsTrigger value="users">Users</TabsTrigger>
-              <TabsTrigger value="artifacts">All Artifacts</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="users">
-              <div
-                className="rounded-lg border overflow-hidden"
-                style={{ backgroundColor: '#FFFFFF', borderColor: '#D4C5A9' }}
-              >
-                <UsersTab />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="artifacts">
-              <AllArtifactsTab />
-            </TabsContent>
-          </Tabs>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Admin page header */}
+        <div className="flex items-center gap-3 mb-6 pb-6 border-b border-secondary/40">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <ShieldIcon className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="font-display text-2xl font-bold text-foreground">
+              Database Administration
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Manage users, artifacts, and database integrity
+            </p>
+          </div>
         </div>
+
+        {/* Quick Stats */}
+        <QuickStats userCount={userCount} artifactCount={artifactCount} />
+
+        <Tabs defaultValue="users">
+          <TabsList className="bg-muted rounded-lg p-1 mb-6">
+            <TabsTrigger
+              value="users"
+              className="data-[state=active]:bg-white data-[state=active]:shadow-warm-xs rounded-md text-sm"
+            >
+              Users{' '}
+              <Badge className="ml-2 bg-muted-foreground/20 text-muted-foreground border-none">
+                {userCount}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger
+              value="artifacts"
+              className="data-[state=active]:bg-white data-[state=active]:shadow-warm-xs rounded-md text-sm"
+            >
+              Artifacts{' '}
+              <Badge className="ml-2 bg-muted-foreground/20 text-muted-foreground border-none">
+                {artifactCount}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="users">
+            <UsersTab />
+          </TabsContent>
+
+          <TabsContent value="artifacts">
+            <AllArtifactsTab />
+          </TabsContent>
+        </Tabs>
       </main>
     </AuthGuard>
   );
