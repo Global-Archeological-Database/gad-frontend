@@ -21,18 +21,18 @@ export default function ChatMessage({ role, content, index }: ChatMessageProps) 
       className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
     >
       {isUser ? (
-        /* User message — right-aligned */
-        <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3.5 py-2.5 max-w-[85%]">
+        /* User message — right-aligned, solid primary background */
+        <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3.5 py-2.5 max-w-[85%] shadow-sm">
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
         </div>
       ) : (
-        /* AI message — left-aligned with avatar */
+        /* AI message — left-aligned with avatar, solid card background */
         <div className="flex gap-3 max-w-[85%]">
           <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center shrink-0 mt-0.5">
             <Sparkles className="h-3 w-3 text-primary" />
           </div>
-          <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5">
-            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+          <div className="bg-card rounded-2xl rounded-tl-sm px-3.5 py-2.5 border border-secondary/30 shadow-sm">
+            <p className="text-sm text-card-foreground leading-relaxed whitespace-pre-wrap">
               {formatAIResponse(content)}
             </p>
           </div>

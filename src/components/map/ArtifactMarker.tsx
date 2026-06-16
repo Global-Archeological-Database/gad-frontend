@@ -16,9 +16,10 @@ interface ArtifactMarkerProps {
  * Build a custom DOM element for the marker.
  * The marker uses the age color as a SOLID fill with a white border ring,
  * making it clearly visible against the warm/light map background.
+ * Size is increased for better visibility and click target.
  */
 function buildMarkerElement(ageColor: string, isSelected: boolean): HTMLDivElement {
-  const size = isSelected ? 22 : 18;
+  const size = isSelected ? 28 : 22;
   const borderWidth = isSelected ? 3 : 2.5;
 
   const el = document.createElement('div');
@@ -30,12 +31,17 @@ function buildMarkerElement(ageColor: string, isSelected: boolean): HTMLDivEleme
     border: ${borderWidth}px solid white;
     box-shadow: ${
       isSelected
-        ? `0 0 0 3px ${ageColor}40, 0 2px 8px rgba(0,0,0,0.4)`
-        : '0 1px 4px rgba(0,0,0,0.3)'
+        ? `0 0 0 4px ${ageColor}60, 0 3px 10px rgba(0,0,0,0.5)`
+        : '0 2px 6px rgba(0,0,0,0.35)'
     };
     cursor: pointer;
     transition: all 200ms ease-out;
+    position: relative;
   `;
+
+  // Add a subtle inner ring for depth
+  el.style.setProperty('--inner-ring', `inset 0 0 0 1px ${ageColor}80`);
+  el.style.boxShadow += `, inset 0 0 0 1px rgba(255,255,255,0.15)`;
 
   return el;
 }
@@ -75,13 +81,15 @@ export default function ArtifactMarker({
         onMouseEnter={(e) => {
           const dot = e.currentTarget.firstElementChild as HTMLElement | null;
           if (dot) {
-            dot.style.transform = 'scale(1.25)';
+            dot.style.transform = 'scale(1.3)';
+            dot.style.zIndex = '10';
           }
         }}
         onMouseLeave={(e) => {
           const dot = e.currentTarget.firstElementChild as HTMLElement | null;
           if (dot) {
             dot.style.transform = 'scale(1)';
+            dot.style.zIndex = 'auto';
           }
         }}
       />

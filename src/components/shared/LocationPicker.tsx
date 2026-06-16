@@ -180,17 +180,18 @@ export default function LocationPicker({
   return (
     <APIProvider apiKey={apiKey}>
       <div className="space-y-4">
-        {/* Map — 280px height, rounded-xl, no street view */}
+        {/* Map — 320px height, rounded-xl, fully interactive */}
         <div
           className="rounded-xl overflow-hidden border border-secondary/40 shadow-warm-sm"
-          style={{ height: '280px' }}
+          style={{ height: '320px' }}
         >
           <Map
             defaultCenter={DEFAULT_CENTER}
             defaultZoom={3}
             gestureHandling="greedy"
-            disableDefaultUI
             streetViewControl={false}
+            mapTypeControl={false}
+            fullscreenControl={false}
             mapId={mapId}
             style={{ width: '100%', height: '100%' }}
             center={currentPosition ?? DEFAULT_CENTER}

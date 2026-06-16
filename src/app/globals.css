@@ -131,7 +131,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-300 ease-out;
   }
   html {
     @apply font-sans;
@@ -164,6 +164,78 @@
     background-color: rgba(0, 0, 0, 0.55) !important;
     backdrop-filter: blur(2px) !important;
   }
+}
+
+/* ── Form elements dark mode ──────────────────────────────────────────── */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: var(--card);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--muted-foreground);
+  opacity: 0.7;
+}
+
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: var(--ring);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(196, 151, 26, 0.15);
+}
+
+/* ── Card / surface hover states in dark mode ─────────────────────────── */
+.dark .card-hover:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Ensure html element always has background in dark mode ───────────── */
+.dark,
+.dark html {
+  background-color: #1A1510;
+}
+
+/* ── Table / list row hover in dark mode ──────────────────────────────── */
+.dark tr:hover,
+.dark [data-slot="table-row"]:hover {
+  background-color: rgba(61, 53, 41, 0.4);
+}
+
+/* ── Badge / tag dark mode ────────────────────────────────────────────── */
+.dark .badge,
+.dark [data-slot="badge"] {
+  background-color: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+/* ── Separator / divider dark mode ────────────────────────────────────── */
+.dark hr,
+.dark [data-slot="separator"] {
+  border-color: var(--border);
+  opacity: 0.6;
+}
+
+/* ── Dropdown menu items dark mode hover ──────────────────────────────── */
+.dark [data-slot="dropdown-menu-item"]:hover,
+.dark [role="menuitem"]:hover {
+  background-color: rgba(61, 53, 41, 0.6);
+}
+
+/* ── Skeleton loader dark mode ────────────────────────────────────────── */
+.dark .animate-pulse {
+  background-color: var(--muted);
+}
+
+/* ── Tooltip dark mode ────────────────────────────────────────────────── */
+.dark [data-slot="tooltip-content"] {
+  background-color: var(--popover);
+  border-color: var(--border);
+  color: var(--popover-foreground);
 }
 
 @keyframes spin {
@@ -241,10 +313,9 @@ body::before {
   background-size: 512px 512px;
 }
 
-/* Dark mode — parchment grain overlay reduced */
+/* Dark mode — parchment grain overlay */
 .dark body::before {
-  opacity: 0.08;  /* Reduced visibility in dark mode */
-  filter: invert(1);  /* Invert the grain pattern */
+  opacity: 0.04;  /* Subtle texture in dark mode */
 }
 
 /* Custom scrollbar — warm palette */

@@ -1,9 +1,9 @@
 'use client';
 
 import { APIProvider, Map } from '@vis.gl/react-google-maps';
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Plus } from 'lucide-react';
+import { Plus, Layers, MapPin, Satellite, Mountain, Moon } from 'lucide-react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { useArtifacts } from '@/hooks/useArtifacts';
@@ -79,6 +79,24 @@ const MAP_RESTRICTION = {
   strictBounds: false,
 };
 
+/** Map style/theme options */
+type MapTheme = 'streets' | 'terrain' | 'satellite' | 'dark';
+
+const MAP_THEME_OPTIONS: { id: MapTheme; label: string; icon: typeof MapPin }[] = [
+  { id: 'streets', label: 'Streets', icon: MapPin },
+  { id: 'terrain', label: 'Terrain', icon: Mountain },
+  { id: 'satellite', label: 'Satellite', icon: Satellite },
+  { id: 'dark', label: 'Dark', icon: Moon },
+];
+
+/** MapTypeId to google.maps.MapTypeId mapping */
+const MAP_TYPE_IDS: Record<MapTheme, google.maps.MapTypeId | undefined> = {
+  streets: google.maps?.MapTypeId?.ROADMAP ?? 'roadmap' as google.maps.MapTypeId,
+  terrain: google.maps?.MapTypeId?.TERRAIN ?? 'terrain' as google.maps.MapTypeId,
+  satellite: google.maps?.MapTypeId?.SATELLITE ?? 'satellite' as google.maps.MapTypeId,
+  dark: undefined, // uses custom styles via mapId
+};
+
 export default function MapExplorer() {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
   const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
@@ -90,6 +108,29 @@ export default function MapExplorer() {
   const isDetailPanelOpen = useMapStore((s) => s.isDetailPanelOpen);
   const setIsDetailPanelOpen = useMapStore((s) => s.setIsDetailPanelOpen);
   const user = useAuthStore((s) => s.user);
+
+  // ── Map theme state ───────────────────────────────────────────
+  const [mapTheme, setMapTheme] = useState<MapTheme>('streets');
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+  const themeMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close theme menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (themeMenuRef.current && !themeMenuRef.current.contains(e.target as Node)) {
+        setThemeMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Auto-switch to dark theme when app is in dark mode
+  useEffect(() => {
+    if (resolvedTheme === 'dark' && mapTheme === 'streets') {
+      setMapTheme('dark');
+    }
+  }, [resolvedTheme, mapTheme]);
 
   // ── Search state ──────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
@@ -132,16 +173,22 @@ export default function MapExplorer() {
 
   // ── Viewport culling — only render markers within current map bounds ──
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
 
   const handleBoundsChanged = useCallback(
     (evt: { map: google.maps.Map }) => {
-      setMapBounds(evt.map.getBounds() ?? null);
+      if (evt.map) {
+        mapRef.current = evt.map;
+        setMapBounds(evt.map.getBounds() ?? null);
+      }
     },
     [],
   );
 
   const visibleArtifacts = useMemo(() => {
-    if (!mapBounds || !artifacts) return artifacts || [];
+    if (!artifacts || artifacts.length === 0) return [];
+    // If no bounds yet (initial render), show all artifacts
+    if (!mapBounds) return artifacts;
     return artifacts.filter((a: Artifact) => {
       const lat = a.latitude ?? a.location?.coordinates?.latitude;
       const lng = a.longitude ?? a.location?.coordinates?.longitude;
@@ -168,6 +215,16 @@ export default function MapExplorer() {
     setSelectedArtifactId(null);
   };
 
+  // Determine which styles to apply based on theme
+  const currentStyles = useMemo(() => {
+    if (mapTheme === 'dark') return DARK_MAP_STYLE;
+    if (mapTheme === 'streets') return LIGHT_MAP_STYLE;
+    // terrain and satellite use Google's native rendering — no custom styles
+    return undefined;
+  }, [mapTheme]);
+
+  const currentMapTypeId = MAP_TYPE_IDS[mapTheme];
+
   return (
     <APIProvider apiKey={apiKey}>
       <div className="relative w-full h-[100dvh] overflow-hidden">
@@ -179,7 +236,8 @@ export default function MapExplorer() {
           maxZoom={18}
           gestureHandling="greedy"
           disableDefaultUI={true}
-          styles={resolvedTheme === 'dark' ? DARK_MAP_STYLE : LIGHT_MAP_STYLE}
+          styles={currentStyles}
+          mapTypeId={currentMapTypeId}
           mapTypeControl={false}
           streetViewControl={false}
           fullscreenControl={false}
@@ -224,11 +282,60 @@ export default function MapExplorer() {
           isLoading={isLoading}
         />
 
+        {/* Map theme/style selector — floating bottom-left */}
+        <div ref={themeMenuRef} className="absolute bottom-6 left-6 z-30">
+          <button
+            onClick={() => setThemeMenuOpen((prev) => !prev)}
+            className="h-10 w-10 rounded-full bg-background/95 backdrop-blur-sm border border-secondary/40 shadow-warm-md flex items-center justify-center hover:bg-accent transition-colors"
+            aria-label="Change map style"
+            title="Change map style"
+          >
+            <Layers className="h-5 w-5 text-foreground" />
+          </button>
+
+          {themeMenuOpen && (
+            <div className="absolute bottom-12 left-0 bg-background/95 backdrop-blur-sm border border-secondary/40 rounded-xl shadow-warm-xl p-1.5 min-w-[160px]">
+              {MAP_THEME_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                const isActive = mapTheme === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => {
+                      setMapTheme(option.id);
+                      setThemeMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      isActive
+                        ? 'bg-primary/10 text-primary font-medium'
+                        : 'text-foreground hover:bg-accent'
+                    }`}
+                  >
+                    <Icon className={`h-4 w-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <span>{option.label}</span>
+                    {isActive && (
+                      <span className="ml-auto h-2 w-2 rounded-full bg-primary" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Loading indicator */}
         {isLoading && (
           <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-background/95 backdrop-blur-sm rounded-full px-4 py-2 shadow-warm-md text-sm text-muted-foreground">
             <div className="w-4 h-4 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
             <span>Loading artifacts...</span>
+          </div>
+        )}
+
+        {/* Empty state — no artifacts loaded */}
+        {!isLoading && artifacts.length === 0 && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-background/95 backdrop-blur-sm rounded-full px-4 py-2 shadow-warm-md text-sm text-muted-foreground">
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+            <span>No artifacts found — be the first to add one!</span>
           </div>
         )}
 

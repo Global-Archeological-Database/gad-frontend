@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -34,7 +34,6 @@ import {
 } from '@/components/ui/select';
 import {
   AlertDialog,
-  AlertDialogTrigger,
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -703,11 +702,11 @@ function SettingsTab() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync form state when settings load
-  const settingsLoaded = useRef(false);
-  if (settings && !settingsLoaded.current) {
-    setSiteName(settings.site_name || '');
-    settingsLoaded.current = true;
-  }
+  useEffect(() => {
+    if (settings) {
+      setSiteName(settings.site_name || '');
+    }
+  }, [settings]);
 
   const updateSettingsMutation = useMutation({
     mutationFn: (payload: { site_name: string }) =>

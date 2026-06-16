@@ -42,12 +42,12 @@ function TypingIndicator() {
       <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
         <Sparkles className="h-3 w-3 text-primary" />
       </div>
-      <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3">
+      <div className="bg-card rounded-2xl rounded-tl-sm px-4 py-3 border border-secondary/30">
         <div className="flex gap-1.5 items-center h-4">
           {[0, 1, 2].map((i) => (
             <motion.span
               key={i}
-              className="w-1.5 h-1.5 rounded-full bg-muted-foreground"
+              className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60"
               animate={{ y: [0, -4, 0] }}
               transition={{
                 duration: 0.8,
@@ -72,8 +72,8 @@ function WelcomeMessage() {
       <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center shrink-0 mt-0.5">
         <Sparkles className="h-3 w-3 text-primary" />
       </div>
-      <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5 max-w-[85%]">
-        <p className="text-sm text-foreground leading-relaxed">
+      <div className="bg-card rounded-2xl rounded-tl-sm px-3.5 py-2.5 max-w-[85%] border border-secondary/30">
+        <p className="text-sm text-card-foreground leading-relaxed">
           Welcome! I'm your archaeological research assistant. I can help you
           understand artifacts, historical periods, ancient civilizations, and
           archaeological methods. What would you like to explore?
@@ -137,6 +137,28 @@ const getModeInstruction = (mode: ResponseMode): string => {
     default:
       return '';
   }
+};
+
+/* ── Animation variants ── */
+const panelVariants = {
+  collapsed: {
+    opacity: 0,
+    scale: 0.95,
+    y: 20,
+    transition: { duration: 0.2, ease: 'easeOut' as const },
+  },
+  default: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { duration: 0.2, ease: 'easeOut' as const },
+  },
+  expanded: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { duration: 0.3, ease: 'easeOut' as const },
+  },
 };
 
 /* ────────────────────────────────────────────
@@ -308,23 +330,38 @@ export default function ChatbotWidget() {
       <AnimatePresence>
         {isChatOpen && (
           <motion.div
-            initial={{ opacity: 0, ...(!isMobile ? { scale: 0.95, y: 20 } : {}) }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, ...(!isMobile ? { scale: 0.95, y: 20 } : {}) }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
+            key="chat-panel"
+            initial="collapsed"
+            animate={isExpanded && !isMobile ? 'expanded' : 'default'}
+            exit="collapsed"
+            variants={panelVariants}
             className={[
-              "z-40 bg-background border-secondary/50 shadow-warm-2xl",
-              "overflow-hidden flex flex-col transition-all duration-300",
+              "z-40 bg-background border border-secondary/50 shadow-warm-2xl",
+              "overflow-hidden flex flex-col",
               isMobile
                 ? "fixed inset-0 rounded-none border-0"
-                : "fixed bottom-24 right-6 rounded-2xl border w-[min(380px,calc(100dvw-24px))] h-[min(560px,calc(100dvh-120px))]",
-              isExpanded && !isMobile ? "w-[min(600px,calc(100dvw-24px))] h-[min(700px,calc(100dvh-120px))]" : ""
+                : "fixed bottom-24 right-6 rounded-2xl",
+              // Size classes — animated via framer-motion
+              isExpanded && !isMobile
+                ? "w-[min(600px,calc(100dvw-24px))] h-[min(700px,calc(100dvh-120px))]"
+                : "w-[min(380px,calc(100dvw-24px))] h-[min(560px,calc(100dvh-120px))]",
             ].filter(Boolean).join(' ')}
+            style={
+              {
+                // Use CSS custom properties so framer-motion can animate width/height smoothly
+                '--panel-width': isExpanded && !isMobile
+                  ? 'min(600px,calc(100dvw - 24px))'
+                  : 'min(380px,calc(100dvw - 24px))',
+                '--panel-height': isExpanded && !isMobile
+                  ? 'min(700px,calc(100dvh - 120px))'
+                  : 'min(560px,calc(100dvh - 120px))',
+              } as React.CSSProperties
+            }
           >
             {/* ── Header ── */}
             <div
               className="flex items-center justify-between px-4 py-3
-                          border-b border-secondary/40 bg-muted/20"
+                          border-b border-secondary/40 bg-card"
             >
               <div className="flex items-center gap-3">
                 <div
@@ -335,7 +372,7 @@ export default function ChatbotWidget() {
                   <Sparkles className="h-4 w-4 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-display font-semibold text-sm text-foreground">
+                  <h3 className="font-display font-semibold text-sm text-card-foreground">
                     Archaeological Assistant
                   </h3>
                   <p className="text-[10px] text-muted-foreground">
@@ -357,7 +394,7 @@ export default function ChatbotWidget() {
                 <button
                   onClick={() => setIsExpanded(!isExpanded)}
                   title={isExpanded ? "Compact view" : "Expand panel"}
-                  className="w-9 h-9 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150 flex items-center justify-center"
+                  className="w-9 h-9 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors duration-150 flex items-center justify-center"
                   aria-label={isExpanded ? "Compact view" : "Expand panel"}
                 >
                   {isExpanded ? (
@@ -372,7 +409,7 @@ export default function ChatbotWidget() {
                   <button
                     onClick={clearChat}
                     className="w-9 h-9 p-0 rounded-lg text-muted-foreground
-                               hover:text-foreground hover:bg-muted
+                               hover:text-foreground hover:bg-secondary
                                transition-colors duration-150 flex items-center justify-center"
                     aria-label="Clear conversation"
                   >
@@ -385,7 +422,7 @@ export default function ChatbotWidget() {
             {/* ── Message List ── */}
             <div
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth"
+              className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth bg-background"
             >
               {/* Welcome message — always first */}
               <WelcomeMessage />
@@ -413,7 +450,7 @@ export default function ChatbotWidget() {
             </div>
 
             {/* ── Response Mode Selector ── */}
-            <div className="px-3 py-2 border-t border-secondary/20">
+            <div className="px-3 py-2 border-t border-secondary/40 bg-card">
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                 <span className="text-[10px] text-muted-foreground shrink-0 mr-1">
                   Style:
@@ -428,8 +465,8 @@ export default function ChatbotWidget() {
                       "px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0",
                       "transition-all duration-150",
                       responseMode === mode.id
-                        ? "bg-primary text-white"
-                        : "bg-muted text-muted-foreground hover:bg-muted/70"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                     ].join(' ')}
                   >
                     {mode.label}
@@ -439,15 +476,15 @@ export default function ChatbotWidget() {
             </div>
 
             {/* ── AI Disclaimer ── */}
-            <div className="px-3 py-1.5 bg-muted/50 border-t border-secondary/30">
-              <p className="text-[10px] text-muted-foreground/70 text-center">
+            <div className="px-3 py-1.5 bg-card border-t border-secondary/40">
+              <p className="text-[10px] text-muted-foreground text-center">
                 AI responses may contain inaccuracies. Verify information with
                 peer-reviewed sources for academic use.
               </p>
             </div>
 
             {/* ── Input Area ── */}
-            <div className="border-t border-secondary/40 p-3">
+            <div className="border-t border-secondary/40 p-3 bg-card">
               <div className="flex items-end gap-2">
                 <div className="flex-1 relative">
                   <textarea
@@ -458,10 +495,10 @@ export default function ChatbotWidget() {
                     placeholder="Ask about archaeological history..."
                     rows={1}
                     className="w-full resize-none rounded-xl border border-secondary/60
-                               bg-muted/30 px-3.5 py-2.5 text-sm
-                               placeholder:text-muted-foreground
-                               focus:border-primary/40 focus:bg-background
-                               focus:ring-2 focus:ring-primary/15
+                               bg-background px-3.5 py-2.5 text-sm text-foreground
+                               placeholder:text-muted-foreground/60
+                               focus:border-primary/50 focus:bg-background
+                               focus:ring-2 focus:ring-primary/20
                                transition-all duration-200
                                max-h-32 overflow-y-auto"
                     style={{ minHeight: '40px' }}
@@ -482,7 +519,7 @@ export default function ChatbotWidget() {
                     'transition-all duration-200',
                     input.trim() && !isTyping
                       ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-golden-sm'
-                      : 'bg-muted text-muted-foreground cursor-not-allowed',
+                      : 'bg-secondary text-muted-foreground cursor-not-allowed',
                   ].join(' ')}
                 >
                   <SendHorizonal className="h-4 w-4" />
