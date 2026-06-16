@@ -81,7 +81,7 @@ export default function GalleryFilterBar({
         <div className="relative flex-shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            className="h-8 pl-8 pr-3 text-xs w-48 rounded-full border-secondary/60 bg-muted/50"
+            className="h-10 pl-8 pr-3 text-xs w-48 rounded-full border-secondary/60 bg-muted/50"
             placeholder="Search artifacts..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -93,7 +93,7 @@ export default function GalleryFilterBar({
           value={filters.condition}
           onValueChange={(value) => onFiltersChange((prev: any) => ({ ...prev, condition: value }))}
         >
-          <SelectTrigger className="h-8 text-xs rounded-full w-[120px] border-secondary/60 bg-muted/50">
+          <SelectTrigger className="h-10 text-xs rounded-full w-[120px] border-secondary/60 bg-muted/50">
             <SelectValue placeholder="Condition" />
           </SelectTrigger>
           <SelectContent>
@@ -111,7 +111,7 @@ export default function GalleryFilterBar({
             <button
               key={type.value}
               className={cn(
-                "h-7 px-3 text-xs rounded-full transition-all duration-200",
+                "h-9 px-4 text-xs rounded-full transition-all duration-200",
                 filters.type === type.value
                   ? "bg-card shadow-warm-xs text-foreground font-medium"
                   : "text-muted-foreground hover:text-foreground"
@@ -129,7 +129,7 @@ export default function GalleryFilterBar({
             value={filters.country}
             onChange={(e) => onFiltersChange((prev: any) => ({ ...prev, country: e.target.value }))}
             placeholder="Filter by location..."
-            className="h-8 text-xs w-44 rounded-full border-secondary/60 bg-muted/50"
+            className="h-10 text-xs w-44 rounded-full border-secondary/60 bg-muted/50"
           />
           {/* Suggestions dropdown */}
           {filters.country.length >= 1 && countrySuggestions.length > 0 && (
@@ -157,7 +157,7 @@ export default function GalleryFilterBar({
         {hasActiveFilters && (
           <button
             onClick={onClearFilters}
-            className="flex-shrink-0 text-xs text-primary hover:underline whitespace-nowrap"
+            className="flex-shrink-0 text-xs text-primary hover:underline whitespace-nowrap px-3 py-2"
           >
             Clear
           </button>

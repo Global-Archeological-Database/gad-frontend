@@ -54,7 +54,7 @@ function NavLink({
       <Link
         href={href}
         className={cn(
-          'relative text-sm font-medium py-1 transition-colors duration-200 inline-flex items-center gap-1.5',
+          'relative text-sm font-medium py-2 px-3 transition-colors duration-200 inline-flex items-center gap-1.5',
           isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
         aria-current={isActive ? 'page' : undefined}
@@ -198,12 +198,12 @@ export default function Header() {
       return (
         <>
           <Link href="/login">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="h-10">
               Sign In
             </Button>
           </Link>
           <Link href="/register">
-            <Button variant="default" size="sm">
+            <Button variant="default" size="sm" className="h-10">
               Register
             </Button>
           </Link>
@@ -217,7 +217,7 @@ export default function Header() {
 
     return (
       <DropdownMenu>
-        <DropdownMenuTrigger className="w-9 h-9 rounded-full bg-primary flex items-center justify-center font-display text-sm font-bold text-white ring-2 ring-transparent hover:ring-primary/20 transition-all duration-200 shadow-warm-sm hover:shadow-golden cursor-pointer outline-none">
+        <DropdownMenuTrigger className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-display text-sm font-bold text-white ring-2 ring-transparent hover:ring-primary/20 transition-all duration-200 shadow-warm-sm hover:shadow-golden cursor-pointer outline-none">
           {initial}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-[180px]">
@@ -226,7 +226,7 @@ export default function Header() {
             <p className="text-sm font-medium text-foreground truncate">
               {user.display_name || 'User'}
             </p>
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs text-muted-foreground truncate max-w-[180px]">
               {user.email}
             </p>
           </div>
@@ -284,7 +284,7 @@ export default function Header() {
           {/* Submit Artifact — only when authenticated, desktop only, hidden on submit page */}
           {user && pathname !== '/submit' && (
             <Link href="/submit" className="hidden md:inline-flex">
-              <Button variant="default" size="sm">
+              <Button variant="default" size="sm" className="h-10">
                 Submit Artifact
               </Button>
             </Link>
@@ -302,7 +302,7 @@ export default function Header() {
 
           {/* Mobile hamburger */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger className="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-200 cursor-pointer" aria-label="Toggle navigation menu">
+            <SheetTrigger className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-200 cursor-pointer" aria-label="Toggle navigation menu">
               {mobileOpen ? (
                 <XIcon className="w-5 h-5" />
               ) : (
@@ -391,7 +391,7 @@ export default function Header() {
                           handleSignOut();
                           setMobileOpen(false);
                         }}
-                        className="p-2 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                        className="p-2.5 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
                         aria-label="Sign out"
                       >
                         <LogOutIcon className="h-4 w-4" />

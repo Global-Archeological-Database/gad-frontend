@@ -95,7 +95,7 @@ export default function ArtifactAISection({
       const result = await aiApi.analyze(artifactId);
       setAnalysis(result.analysis);
     } catch (e) {
-      setError("Analysis failed. Please try again.");
+      setError("We couldn't analyze this artifact right now. The AI service may be temporarily unavailable. Please try again.");
     } finally {
       setIsAnalyzing(false);
     }

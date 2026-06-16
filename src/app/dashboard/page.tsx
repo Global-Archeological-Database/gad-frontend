@@ -19,6 +19,7 @@ import {
   EyeOffIcon,
   SparkleIcon,
 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
@@ -50,21 +51,10 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { artifactsApi, authApi } from '@/lib/api';
 import { artifactKeys } from '@/hooks/useArtifacts';
+import { formatDateStr } from '@/lib/utils';
 import type { Artifact } from '@/types/artifact';
 
 /* ─── Helpers ─── */
-
-function formatDate(dateStr: string): string {
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  } catch {
-    return dateStr;
-  }
-}
 
 function getUniqueCountries(artifacts: Artifact[]): number {
   const countries = new Set<string>();
@@ -130,7 +120,7 @@ function WelcomeHeader({ user }: { user: NonNullable<ReturnType<typeof useAuthSt
           {user.display_name ? `${user.display_name}'s Collection` : 'My Collection'}
         </h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Member since {formatDate(user.created_at)}
+          Member since {formatDateStr(user.created_at)}
         </p>
       </div>
     </div>
@@ -146,7 +136,7 @@ interface StatItem {
   color: string;
 }
 
-function StatsRow({ artifacts }: { artifacts: Artifact[] }) {
+function StatsRow({ artifacts, isLoading }: { artifacts: Artifact[]; isLoading?: boolean }) {
   const totalArtifacts = artifacts.length;
   const analyzed = artifacts.filter((a) => a.ai_analysis).length;
   const uniqueCountries = getUniqueCountries(artifacts);
@@ -158,6 +148,27 @@ function StatsRow({ artifacts }: { artifacts: Artifact[] }) {
     { label: 'Countries', value: uniqueCountries, icon: GlobeIcon, color: 'bg-primary/10 text-primary' },
     { label: 'Total Views', value: totalViews, icon: EyeIcon, color: 'bg-primary/10 text-primary' },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={`stat-skeleton-${i}`}
+            className="rounded-xl border border-secondary/40 bg-card p-4 shadow-warm-xs"
+          >
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-8 w-12" />
+              </div>
+              <Skeleton className="h-8 w-8 rounded-lg" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -271,7 +282,7 @@ function UserArtifactGrid({
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel>Keep artifact</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => onDelete(artifact)}
                     className="bg-destructive hover:bg-destructive/90"
@@ -307,10 +318,10 @@ function ProfileCard({ user }: { user: NonNullable<ReturnType<typeof useAuthStor
       });
       const updatedProfile = await authApi.getProfile();
       useAuthStore.getState().setUser(updatedProfile);
-      toast.success('Profile updated successfully');
+      toast.success('Profile updated', { duration: 3000 });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update profile';
-      toast.error(message);
+      toast.error(message, { duration: 5000 });
     } finally {
       setSaving(false);
     }
@@ -337,7 +348,7 @@ function ProfileCard({ user }: { user: NonNullable<ReturnType<typeof useAuthStor
             </p>
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Joined {formatDate(user.created_at)}
+              Joined {formatDateStr(user.created_at)}
             </p>
           </div>
         </div>
@@ -386,10 +397,10 @@ function ProfileCard({ user }: { user: NonNullable<ReturnType<typeof useAuthStor
                   ...user,
                   settings: { ...user.settings, show_name_publicly: checked },
                 });
-                toast.success('Visibility updated');
+                toast.success('Visibility updated', { duration: 3000 });
               }).catch(() => {
                 setShowNamePublicly(!checked);
-                toast.error('Failed to update visibility');
+                toast.error('Failed to update visibility', { duration: 5000 });
               });
             }}
             className="data-[state=checked]:bg-primary shrink-0 mt-0.5"
@@ -436,10 +447,10 @@ function AccountCard({ user }: { user: NonNullable<ReturnType<typeof useAuthStor
     try {
       await signOut(auth);
       useAuthStore.getState().setUser(null);
-      toast.success('Signed out successfully');
+      toast.success('Signed out successfully', { duration: 3000 });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to sign out';
-      toast.error(message);
+      toast.error(message, { duration: 5000 });
       setSigningOut(false);
     }
   };
@@ -510,11 +521,11 @@ export default function DashboardPage() {
     mutationFn: (id: string) => artifactsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: artifactKeys.lists() });
-      toast.success('Artifact deleted successfully');
+      toast.success('Artifact removed from the database', { duration: 3000 });
     },
     onError: (err) => {
       const message = err instanceof Error ? err.message : 'Failed to delete artifact';
-      toast.error(message);
+      toast.error(message, { duration: 5000 });
     },
   });
 
@@ -536,7 +547,7 @@ export default function DashboardPage() {
         <WelcomeHeader user={user} />
 
         {/* Stats row */}
-        <StatsRow artifacts={myArtifacts} />
+        <StatsRow artifacts={myArtifacts} isLoading={isLoadingArtifacts} />
 
         {/* Main content — 2 columns on lg */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr,320px] gap-8 mt-8">

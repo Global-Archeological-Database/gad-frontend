@@ -22,5 +22,18 @@ function parseDate(value: string | FirestoreTimestamp | null | undefined): Date 
 export function formatDate(
   value: string | FirestoreTimestamp | null | undefined
 ): string {
-  return format(parseDate(value), "MMM d, yyyy");
+  return format(parseDate(value), "d MMMM yyyy");
+}
+
+/**
+ * Format a date string or Date object to a human-readable UK format.
+ * e.g. "9 March 2026"
+ */
+export function formatDateStr(dateStr: string | Date): string {
+  const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 }

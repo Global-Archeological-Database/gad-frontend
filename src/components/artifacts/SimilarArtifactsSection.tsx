@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
-import { SparklesIcon, Loader2Icon, DatabaseIcon } from "lucide-react";
+import { SparklesIcon, Loader2Icon, DatabaseIcon, SearchXIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { aiApi } from "@/lib/api";
 import { getAgeColor } from "@/lib/ageColor";
@@ -26,11 +26,13 @@ export default function SimilarArtifactsSection({ artifactId }: SimilarArtifacts
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusHint, setStatusHint] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const findSimilar = async () => {
     setIsLoading(true);
     setStatusMessage(null);
     setStatusHint(null);
+    setHasSearched(true);
     try {
       const result: FindSimilarResponse = await aiApi.findSimilar(artifactId);
       
@@ -44,7 +46,7 @@ export default function SimilarArtifactsSection({ artifactId }: SimilarArtifacts
       
       // Handle parse_error
       if (result.message === 'parse_error') {
-        toast.error('The AI similarity search encountered an issue. Please try again.');
+        toast.error('We couldn\'t find similar artifacts right now. The AI service returned an unexpected response. Please try again.');
         setSimilar([]);
         return;
       }
@@ -53,7 +55,7 @@ export default function SimilarArtifactsSection({ artifactId }: SimilarArtifacts
       
       // If no similar found but not an error state
       if (result.similar.length === 0) {
-        toast.error('No similar artifacts found. Try adding more artifacts to the database.');
+        toast.error('We couldn\'t find similar artifacts right now. This may be because the database doesn\'t have enough related artifacts yet. Try again as the collection grows.');
       }
     } catch (e) {
       toast.error('We could not find similar artifacts right now. This may be because there are not enough related artifacts in the database yet.');
@@ -83,28 +85,64 @@ export default function SimilarArtifactsSection({ artifactId }: SimilarArtifacts
         </Button>
       </div>
 
-      {/* Empty / Initial State */}
-      {similar.length === 0 && !isLoading && !statusMessage && (
-        <p className="text-sm text-muted-foreground text-center py-8">
-          Click &ldquo;Find Similar&rdquo; to discover related artifacts using AI
-        </p>
+      {/* Empty / Initial State — before any search */}
+      {!hasSearched && similar.length === 0 && !isLoading && !statusMessage && (
+        <div className="flex flex-col items-center py-8 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-4 text-muted-foreground/40">
+            <SparklesIcon className="h-7 w-7" />
+          </div>
+          <h3 className="font-display text-base font-semibold text-foreground mb-1">
+            Discover similar artifacts
+          </h3>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            Click &ldquo;Find Similar&rdquo; to discover related artifacts using AI
+          </p>
+        </div>
       )}
 
       {/* Loading State */}
       {isLoading && similar.length === 0 && !statusMessage && (
-        <p className="text-sm text-muted-foreground text-center py-8">
-          Searching for similar artifacts...
-        </p>
+        <div className="flex flex-col items-center py-8 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-4 text-muted-foreground/40">
+            <Loader2Icon className="h-7 w-7 animate-spin" />
+          </div>
+          <p className="text-sm text-muted-foreground">Searching for similar artifacts...</p>
+        </div>
       )}
 
       {/* Not Enough Data State */}
       {statusMessage === 'not_enough_data' && !isLoading && (
-        <div className="text-center py-8 text-sm text-muted-foreground">
-          <DatabaseIcon className="h-8 w-8 mx-auto mb-3 opacity-30" />
-          <p>More artifacts needed to find similarities.</p>
-          <Link href="/submit" className="text-primary hover:underline text-xs mt-2 block">
-            Contribute an artifact →
+        <div className="flex flex-col items-center py-8 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-4 text-muted-foreground/40">
+            <DatabaseIcon className="h-7 w-7" />
+          </div>
+          <h3 className="font-display text-base font-semibold text-foreground mb-1">
+            More artifacts needed
+          </h3>
+          <p className="text-sm text-muted-foreground max-w-xs mb-4">
+            The database needs more artifacts to find similarities. Try again as the collection grows.
+          </p>
+          <Link
+            href="/submit"
+            className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 h-8 gap-1.5 px-2.5 text-sm font-medium whitespace-nowrap transition-all shadow-warm-sm"
+          >
+            Contribute an artifact
           </Link>
+        </div>
+      )}
+
+      {/* Zero Results State — search completed but no similar found */}
+      {hasSearched && similar.length === 0 && !isLoading && !statusMessage && (
+        <div className="flex flex-col items-center py-8 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-4 text-muted-foreground/40">
+            <SearchXIcon className="h-7 w-7" />
+          </div>
+          <h3 className="font-display text-base font-semibold text-foreground mb-1">
+            No similar artifacts found
+          </h3>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            No related artifacts could be found for this piece. Try again as the collection grows.
+          </p>
         </div>
       )}
 

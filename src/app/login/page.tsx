@@ -23,7 +23,7 @@ export default function LoginPage() {
   }, []);
 
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2">
+    <div className="min-h-[100dvh] grid grid-cols-1 lg:grid-cols-2">
       {/* LEFT — Atmospheric panel */}
       <div className="hidden lg:flex flex-col bg-[#1A1A2E] relative overflow-hidden">
         {/* Subtle background pattern — SVG artifact outlines */}

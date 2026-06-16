@@ -469,7 +469,7 @@ export default function ArtifactSubmitForm() {
         setNewArtifactId(editId);
         setSubmitted(true);
 
-        toast.success('Artifact updated successfully!');
+        toast.success('Changes saved', { duration: 3000 });
       } else {
         // ── CREATE MODE ──
         // 1. Create artifact (without media URLs)
@@ -534,12 +534,12 @@ export default function ArtifactSubmitForm() {
         setNewArtifactId(newId);
         setSubmitted(true);
 
-        toast.success('Artifact submitted successfully!');
+        toast.success('Artifact registered successfully', { duration: 3000 });
       }
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Submission failed. Please try again.';
-      toast.error(message);
+      toast.error(message, { duration: 5000 });
     } finally {
       setSubmitting(false);
     }
@@ -1033,7 +1033,7 @@ export default function ArtifactSubmitForm() {
           <AlertDialogFooter>
             <AlertDialogCancel>Keep editing</AlertDialogCancel>
             <AlertDialogAction onClick={confirmLeave}>
-              Discard
+              Leave form
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

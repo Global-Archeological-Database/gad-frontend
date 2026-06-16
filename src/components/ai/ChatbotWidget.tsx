@@ -2,12 +2,27 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, X, SendHorizonal, Trash2, Maximize2, Minimize2 } from 'lucide-react';
+import { Sparkles, X, SendHorizonal, Trash2, Maximize2, Minimize2, ChevronLeft } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useUiStore } from '@/store/uiStore';
 import { aiApi } from '@/lib/api';
 import ChatMessage from '@/components/ai/ChatMessage';
 import { formatAIResponse } from '@/lib/formatAIResponse';
+
+/* ────────────────────────────────────────────
+   useMediaQuery Hook
+   ──────────────────────────────────────────── */
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false)
+  useEffect(() => {
+    const media = window.matchMedia(query)
+    setMatches(media.matches)
+    const listener = () => setMatches(media.matches)
+    media.addEventListener('change', listener)
+    return () => media.removeEventListener('change', listener)
+  }, [query])
+  return matches
+}
 
 /* ────────────────────────────────────────────
    Types
@@ -137,6 +152,7 @@ export default function ChatbotWidget() {
   const [isTyping, setIsTyping] = useState(false);
   const [responseMode, setResponseMode] = useState<ResponseMode>('standard');
   const [isExpanded, setIsExpanded] = useState(false);
+  const isMobile = useMediaQuery('(max-width: 640px)');
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -292,19 +308,18 @@ export default function ChatbotWidget() {
       <AnimatePresence>
         {isChatOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, ...(!isMobile ? { scale: 0.95, y: 20 } : {}) }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            exit={{ opacity: 0, ...(!isMobile ? { scale: 0.95, y: 20 } : {}) }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={[
-              "fixed bottom-24 right-6 z-40",
-              "rounded-2xl bg-background border border-secondary/50 shadow-warm-2xl",
-              "overflow-hidden flex flex-col",
-              "transition-all duration-300 ease-out",
-              isExpanded
-                ? "w-[min(600px,calc(100vw-24px))] h-[min(700px,calc(100vh-120px))]"
-                : "w-[min(380px,calc(100vw-24px))] h-[min(560px,calc(100vh-120px))]"
-            ].join(' ')}
+              "z-40 bg-background border-secondary/50 shadow-warm-2xl",
+              "overflow-hidden flex flex-col transition-all duration-300",
+              isMobile
+                ? "fixed inset-0 rounded-none border-0"
+                : "fixed bottom-24 right-6 rounded-2xl border w-[min(380px,calc(100dvw-24px))] h-[min(560px,calc(100dvh-120px))]",
+              isExpanded && !isMobile ? "w-[min(600px,calc(100dvw-24px))] h-[min(700px,calc(100dvh-120px))]" : ""
+            ].filter(Boolean).join(' ')}
           >
             {/* ── Header ── */}
             <div
@@ -330,11 +345,19 @@ export default function ChatbotWidget() {
               </div>
 
               <div className="flex items-center gap-1">
+                {/* Back button (mobile only) */}
+                {isMobile && (
+                  <button onClick={() => setIsChatOpen(false)}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors p-2.5"
+                    aria-label="Back">
+                    <ChevronLeft className="h-4 w-4" /> Back
+                  </button>
+                )}
                 {/* Expand / collapse button */}
                 <button
                   onClick={() => setIsExpanded(!isExpanded)}
                   title={isExpanded ? "Compact view" : "Expand panel"}
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150"
+                  className="w-9 h-9 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150 flex items-center justify-center"
                   aria-label={isExpanded ? "Compact view" : "Expand panel"}
                 >
                   {isExpanded ? (
@@ -348,9 +371,9 @@ export default function ChatbotWidget() {
                 {messages.length > 1 && (
                   <button
                     onClick={clearChat}
-                    className="p-1.5 rounded-lg text-muted-foreground
+                    className="w-9 h-9 p-0 rounded-lg text-muted-foreground
                                hover:text-foreground hover:bg-muted
-                               transition-colors duration-150"
+                               transition-colors duration-150 flex items-center justify-center"
                     aria-label="Clear conversation"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

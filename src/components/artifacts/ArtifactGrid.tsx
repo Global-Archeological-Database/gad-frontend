@@ -92,7 +92,7 @@ export default function ArtifactGrid({
   // Loading state — 12 warm skeleton cards
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 landscape:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {Array.from({ length: 12 }).map((_, i) => (
           <ArtifactCardSkeleton key={`skeleton-${i}`} />
         ))}
@@ -125,7 +125,7 @@ export default function ArtifactGrid({
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+      className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 landscape:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4"
     >
       {artifacts.map((artifact) => (
         <motion.div key={artifact.id} variants={itemVariants}>

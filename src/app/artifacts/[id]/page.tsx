@@ -170,7 +170,7 @@ export default async function ArtifactDetailPage({ params }: PageProps) {
   ];
 
   return (
-    <main id="main-content" className="min-h-screen bg-background">
+    <main id="main-content" className="min-h-[100dvh] bg-background">
       {/* Breadcrumb navigation */}
       <nav aria-label="Breadcrumb" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         <ol className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -193,8 +193,8 @@ export default async function ArtifactDetailPage({ params }: PageProps) {
             <Link
               href="/artifacts"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full
-                         bg-white/80 backdrop-blur-sm text-xs font-medium
-                         text-foreground shadow-warm-sm hover:bg-white
+                         bg-card/80 backdrop-blur-sm text-xs font-medium
+                         text-foreground shadow-warm-sm hover:bg-card
                          hover:shadow-warm-md transition-all duration-200"
             >
               <ChevronLeftIcon className="h-3.5 w-3.5" />
@@ -218,7 +218,7 @@ export default async function ArtifactDetailPage({ params }: PageProps) {
             )}
 
             {/* Bottom gradient for text readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/20 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 
             {/* Title overlay */}
             <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
@@ -303,7 +303,7 @@ export default async function ArtifactDetailPage({ params }: PageProps) {
             {/* RIGHT COLUMN — structured data */}
             <aside className="space-y-6">
               {/* Metadata Card */}
-              <div className="rounded-xl border border-secondary/40 bg-white shadow-warm-sm overflow-hidden">
+              <div className="rounded-xl border border-secondary/40 bg-card shadow-warm-sm overflow-hidden">
                 <div className="p-4 bg-muted/30 border-b border-secondary/30">
                   <h2 className="font-display font-semibold text-sm uppercase tracking-wider text-muted-foreground">
                     Artifact Details
@@ -343,7 +343,7 @@ export default async function ArtifactDetailPage({ params }: PageProps) {
               </div>
 
               {/* Location Card */}
-              <div className="rounded-xl border border-secondary/40 bg-white shadow-warm-sm overflow-hidden">
+              <div className="rounded-xl border border-secondary/40 bg-card shadow-warm-sm overflow-hidden">
                 <div className="p-4 bg-muted/30 border-b border-secondary/30">
                   <h2 className="font-display font-semibold text-sm uppercase tracking-wider text-muted-foreground">
                     Location Found
@@ -357,7 +357,7 @@ export default async function ArtifactDetailPage({ params }: PageProps) {
                       className="w-full h-40 object-cover"
                     />
                     {locationParts.length > 0 && (
-                      <div className="p-3 text-xs text-muted-foreground">
+                      <div className="p-3 text-xs text-muted-foreground truncate">
                         {locationParts.join(", ")}
                       </div>
                     )}

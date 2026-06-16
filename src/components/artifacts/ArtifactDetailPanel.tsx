@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 import StaticMap from '@/components/artifacts/StaticMap';
 import { ArtifactImage } from '@/components/artifacts/ArtifactImage';
 import { getAgeColor } from '@/lib/ageColor';
+import { formatDateStr } from '@/lib/utils';
 
 interface ArtifactDetailPanelProps {
   artifactId: string | null;
@@ -58,10 +59,8 @@ export default function ArtifactDetailPanel({
     const lng =
       artifact?.longitude ?? artifact?.location?.coordinates?.longitude;
     if (lat == null || lng == null) return null;
-    // Use a free tile service — OpenStreetMap static map via a proxy or
-    // a simple placeholder.  Here we generate a Google-Maps-style URL
-    // that the StaticMap component can render as an <img>.
-    // For a production app you would use a proper static-map API key.
+    // Generate a Mapbox static map URL for the artifact location.
+    // Replace the access token with a valid Mapbox public token in production.
     return `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-l+B8860B(${lng},${lat})/${lng},${lat},10,0/400x80@2x?access_token=pk.placeholder`;
   }, [artifact]);
 
@@ -310,15 +309,7 @@ export default function ArtifactDetailPanel({
               <div className="text-xs text-muted-foreground text-right">
                 {artifact.created_at && (
                   <div>
-                    Added{' '}
-                    {new Date(artifact.created_at).toLocaleDateString(
-                      undefined,
-                      {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      },
-                    )}
+                    Added {formatDateStr(artifact.created_at)}
                   </div>
                 )}
                 <div>{artifact.view_count ?? 0} views</div>

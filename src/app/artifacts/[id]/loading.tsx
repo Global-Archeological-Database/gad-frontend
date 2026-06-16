@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ArtifactDetailLoading() {
   return (
-    <main id="main-content" className="min-h-screen bg-background">
+    <main id="main-content" className="min-h-[100dvh] bg-background">
       {/* HERO SKELETON — matches h-[55vh] max-h-[500px] min-h-[300px] */}
       <div className="relative h-[55vh] max-h-[500px] min-h-[300px] overflow-hidden bg-muted animate-pulse">
         {/* Age color accent bar skeleton */}
@@ -39,7 +39,7 @@ export default function ArtifactDetailLoading() {
             </section>
 
             {/* AI Analysis placeholder skeleton */}
-            <div className="rounded-xl border border-secondary/40 bg-white shadow-warm-sm p-6 min-h-[120px]">
+            <div className="rounded-xl border border-secondary/40 bg-card shadow-warm-sm p-6 min-h-[120px]">
               <Skeleton className="h-5 w-28 mb-3" />
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-2/3 mt-2" />
@@ -49,7 +49,7 @@ export default function ArtifactDetailLoading() {
           {/* RIGHT COLUMN — structured data */}
           <aside className="space-y-6">
             {/* Metadata card skeleton */}
-            <div className="rounded-xl border border-secondary/40 bg-white shadow-warm-sm overflow-hidden">
+            <div className="rounded-xl border border-secondary/40 bg-card shadow-warm-sm overflow-hidden">
               <div className="p-4 bg-muted/30 border-b border-secondary/30">
                 <Skeleton className="h-4 w-28" />
               </div>
@@ -67,7 +67,7 @@ export default function ArtifactDetailLoading() {
             </div>
 
             {/* Location card skeleton */}
-            <div className="rounded-xl border border-secondary/40 bg-white shadow-warm-sm overflow-hidden">
+            <div className="rounded-xl border border-secondary/40 bg-card shadow-warm-sm overflow-hidden">
               <div className="p-4 bg-muted/30 border-b border-secondary/30">
                 <Skeleton className="h-4 w-28" />
               </div>
@@ -78,7 +78,7 @@ export default function ArtifactDetailLoading() {
             </div>
 
             {/* Similar artifacts skeleton */}
-            <div className="rounded-xl border border-secondary/40 bg-white shadow-warm-sm p-6 min-h-[100px]">
+            <div className="rounded-xl border border-secondary/40 bg-card shadow-warm-sm p-6 min-h-[100px]">
               <Skeleton className="h-5 w-28 mb-3" />
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-2/3 mt-2" />

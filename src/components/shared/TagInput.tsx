@@ -79,7 +79,7 @@ export default function TagInput({
             <button
               type="button"
               onClick={() => removeTag(tag)}
-              className="inline-flex items-center justify-center rounded-full p-0.5 hover:bg-black/10 transition-colors"
+              className="inline-flex items-center justify-center rounded-full p-0.5 hover:bg-muted/50 transition-colors"
               aria-label={`Remove ${tag}`}
             >
               <X size={12} />

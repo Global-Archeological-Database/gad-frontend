@@ -23,6 +23,10 @@ const config = {
   ],
   theme: {
     extend: {
+      screens: {
+        'xs': '400px',
+        'landscape': { 'raw': '(orientation: landscape)' },
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

@@ -15,6 +15,8 @@ import {
   UserCheckIcon,
   UploadIcon,
   CrownIcon,
+  PackageOpenIcon,
+  InboxIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -98,7 +100,7 @@ function QuickStats({
       {stats.map(({ label, value, icon: Icon, color }) => (
         <div
           key={label}
-          className="rounded-xl border border-secondary/40 bg-white p-4 shadow-warm-xs"
+          className="rounded-xl border border-secondary/40 bg-card p-4 shadow-warm-xs"
         >
           <div className="flex items-start justify-between">
             <div>
@@ -149,7 +151,7 @@ function UsersTable({
   const isOwner = currentUserRole === 'owner';
 
   return (
-    <div className="rounded-xl border border-secondary/40 overflow-hidden shadow-warm-xs bg-white">
+    <div className="rounded-xl border border-secondary/40 overflow-hidden shadow-warm-xs bg-card">
       {/* Table search */}
       <div className="p-4 border-b border-secondary/30 flex items-center gap-3">
         <div className="relative flex-1 max-w-xs">
@@ -163,8 +165,8 @@ function UsersTable({
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Table — hidden on mobile */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-secondary/30 bg-muted/30">
@@ -183,107 +185,179 @@ function UsersTable({
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.map((user, idx) => (
-              <tr
-                key={user.uid}
-                className={cn(
-                  'border-b border-secondary/20 transition-colors',
-                  idx % 2 === 0 ? 'bg-white' : 'bg-muted/10',
-                  'hover:bg-muted/20',
-                )}
-              >
-                {/* User column */}
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        'w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm shrink-0',
-                        user.role === 'owner'
-                          ? 'bg-amber-100 text-amber-700'
-                          : user.role === 'admin'
-                          ? 'bg-primary/10 text-primary'
-                          : 'bg-muted text-muted-foreground',
-                      )}
-                    >
-                      {(user.display_name || user.email)[0].toUpperCase()}
+            {filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan={4}>
+                  <div className="flex flex-col items-center py-12 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-4 text-muted-foreground/40">
+                      <UsersIcon className="h-7 w-7" />
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
-                        {user.display_name || 'No name set'}
-                        {user.role === 'owner' && (
-                          <CrownIcon className="h-3.5 w-3.5 text-amber-500" />
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {user.email}
-                      </p>
-                    </div>
+                    <h3 className="font-display text-lg font-semibold text-foreground mb-2">
+                      {search ? 'No users match your search' : 'No users yet'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground max-w-xs mb-6">
+                      {search
+                        ? 'Try adjusting your search terms to find what you\'re looking for.'
+                        : 'Users who sign up for the platform will appear here.'}
+                    </p>
                   </div>
                 </td>
-
-                {/* Role column */}
-                <td className="px-4 py-3">
-                  {user.role === 'owner' ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
-                      <CrownIcon className="h-3 w-3" />
-                      Owner
-                    </span>
-                  ) : (
-                    <Select
-                      value={user.role}
-                      onValueChange={(role) =>
-                        onRoleChange(user.uid, role as 'user' | 'admin')
-                      }
-                      disabled={!isOwner || user.uid === currentUser?.uid}
-                    >
-                      <SelectTrigger
+              </tr>
+            ) : (
+              filteredUsers.map((user, idx) => (
+                <tr
+                  key={user.uid}
+                  className={cn(
+                    'border-b border-secondary/20 transition-colors',
+                    idx % 2 === 0 ? 'bg-card' : 'bg-muted/10',
+                    'hover:bg-muted/20',
+                  )}
+                >
+                  {/* User column */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div
                         className={cn(
-                          'h-7 text-xs w-24 rounded-full border',
-                          user.role === 'admin'
-                            ? 'border-primary/40 bg-primary/5 text-primary'
-                            : 'border-secondary text-muted-foreground',
+                          'w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm shrink-0',
+                          user.role === 'owner'
+                            ? 'bg-amber-100 text-amber-700'
+                            : user.role === 'admin'
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-muted text-muted-foreground',
                         )}
                       >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                </td>
+                        {(user.display_name || user.email)[0].toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
+                          {user.display_name || 'No name set'}
+                          {user.role === 'owner' && (
+                            <CrownIcon className="h-3.5 w-3.5 text-amber-500" />
+                          )}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {user.email}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
 
-                {/* Joined column */}
-                <td className="px-4 py-3 text-xs text-muted-foreground">
-                  {formatDate(user.created_at)}
-                </td>
+                  {/* Role column */}
+                  <td className="px-4 py-3">
+                    {user.role === 'owner' ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                        <CrownIcon className="h-3 w-3" />
+                        Owner
+                      </span>
+                    ) : (
+                      <Select
+                        value={user.role}
+                        onValueChange={(role) =>
+                          onRoleChange(user.uid, role as 'user' | 'admin')
+                        }
+                        disabled={!isOwner || user.uid === currentUser?.uid}
+                      >
+                        <SelectTrigger
+                          className={cn(
+                            'h-7 text-xs w-24 rounded-full border',
+                            user.role === 'admin'
+                              ? 'border-primary/40 bg-primary/5 text-primary'
+                              : 'border-secondary text-muted-foreground',
+                          )}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </td>
 
-                {/* Actions column */}
-                <td className="px-4 py-3 text-right">
-                  {user.uid !== currentUser?.uid && (
-                    <Link
-                      href={`/artifacts?uploader=${user.uid}`}
-                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                    >
-                      View artifacts
-                      <ExternalLinkIcon className="h-3 w-3" />
-                    </Link>
-                  )}
-                </td>
-              </tr>
-            ))}
+                  {/* Joined column */}
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {formatDate(user.created_at)}
+                  </td>
+
+                  {/* Actions column */}
+                  <td className="px-4 py-3 text-right">
+                    {user.uid !== currentUser?.uid && (
+                      <Link
+                        href={`/artifacts?uploader=${user.uid}`}
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                      >
+                        View artifacts
+                        <ExternalLinkIcon className="h-3 w-3" />
+                      </Link>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
-      {filteredUsers.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-sm text-muted-foreground">
-            {search ? 'No users match your search.' : 'No users found.'}
-          </p>
-        </div>
-      )}
+      {/* Mobile card list — shown only on small screens */}
+      <div className="md:hidden space-y-3 p-4">
+        {filteredUsers.map((user) => (
+          <div
+            key={user.uid}
+            className="rounded-xl border border-secondary/40 bg-card p-4 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center">
+                  {(user.email || user.display_name || '?')[0].toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{user.display_name || '—'}</p>
+                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                </div>
+              </div>
+              {user.role === 'owner' ? (
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                  <CrownIcon className="h-3 w-3" />
+                  Owner
+                </span>
+              ) : (
+                <Select
+                  value={user.role}
+                  onValueChange={(r) => onRoleChange(user.uid, r as 'user' | 'admin')}
+                  disabled={!isOwner || user.uid === currentUser?.uid}
+                >
+                  <SelectTrigger className="w-20 h-7 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Joined {formatDate(user.created_at)}
+            </p>
+            {user.uid !== currentUser?.uid && (
+              <Link
+                href={`/artifacts?uploader=${user.uid}`}
+                className="text-xs text-primary hover:underline flex items-center gap-1"
+              >
+                <ExternalLinkIcon className="h-3 w-3" /> View artifacts
+              </Link>
+            )}
+          </div>
+        ))}
+        {filteredUsers.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-sm text-muted-foreground">
+              {search ? 'No users match your search.' : 'No users found.'}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -305,12 +379,12 @@ function UsersTab() {
       adminApi.updateRole(uid, role),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
-      toast.success('User role updated successfully');
+      toast.success('User role updated', { duration: 3000 });
     },
     onError: (err) => {
       const message =
         err instanceof Error ? err.message : 'Failed to update role';
-      toast.error(message);
+      toast.error(message, { duration: 5000 });
     },
   });
 
@@ -322,8 +396,38 @@ function UsersTab() {
 
   if (isLoading) {
     return (
-      <div className="text-center py-12">
-        <p className="text-sm text-muted-foreground">Loading users...</p>
+      <div className="rounded-xl border border-secondary/40 overflow-hidden shadow-warm-xs bg-card">
+        <div className="p-4 border-b border-secondary/30">
+          <div className="h-8 w-48 bg-muted rounded">
+            <div className="h-full w-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer rounded" />
+          </div>
+        </div>
+        <div className="space-y-0">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={`user-skeleton-${i}`}
+              className="flex items-center gap-4 p-3 border-b border-secondary/20"
+            >
+              <div className="h-10 w-10 rounded-full bg-muted">
+                <div className="h-full w-full rounded-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer" />
+              </div>
+              <div className="space-y-2 flex-1">
+                <div className="h-4 w-[200px] bg-muted rounded">
+                  <div className="h-full w-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer rounded" />
+                </div>
+                <div className="h-3 w-[150px] bg-muted rounded">
+                  <div className="h-full w-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer rounded" />
+                </div>
+              </div>
+              <div className="h-8 w-[100px] bg-muted rounded-full">
+                <div className="h-full w-full rounded-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer" />
+              </div>
+              <div className="h-8 w-[80px] bg-muted rounded">
+                <div className="h-full w-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -348,8 +452,16 @@ function AdminArtifactsGrid({
 }) {
   if (artifacts.length === 0) {
     return (
-      <div className="text-center py-16">
-        <p className="text-sm text-muted-foreground">No artifacts found.</p>
+      <div className="flex flex-col items-center py-16 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-4 text-muted-foreground/40">
+          <PackageOpenIcon className="h-7 w-7" />
+        </div>
+        <h3 className="font-display text-lg font-semibold text-foreground mb-2">
+          No artifacts in the database
+        </h3>
+        <p className="text-sm text-muted-foreground max-w-xs mb-6">
+          Artifacts submitted by users will appear here for review and management.
+        </p>
       </div>
     );
   }
@@ -386,12 +498,12 @@ function AllArtifactsTab() {
     mutationFn: (id: string) => adminApi.deleteArtifact(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: artifactKeys.lists() });
-      toast.success('Artifact deleted by admin');
+      toast.success('Artifact removed from the database', { duration: 3000 });
     },
     onError: (err) => {
       const message =
         err instanceof Error ? err.message : 'Failed to delete artifact';
-      toast.error(message);
+      toast.error(message, { duration: 5000 });
     },
     onSettled: () => {
       setDeleteTarget(null);
@@ -420,7 +532,7 @@ function AllArtifactsTab() {
           {Array.from({ length: 12 }).map((_, i) => (
             <div
               key={`skeleton-${i}`}
-              className="rounded-xl overflow-hidden bg-white border border-secondary/40"
+              className="rounded-xl overflow-hidden bg-card border border-secondary/40"
             >
               <div className="relative aspect-[4/3] overflow-hidden bg-muted">
                 <div className="absolute inset-0 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer" />
@@ -457,7 +569,7 @@ function AllArtifactsTab() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Keep artifact</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               className="bg-destructive hover:bg-destructive/90"
@@ -487,12 +599,12 @@ function AdminRequestsTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'requests'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
-      toast.success('Admin request approved');
+      toast.success('Admin request approved', { duration: 3000 });
     },
     onError: (err) => {
       const message =
         err instanceof Error ? err.message : 'Failed to approve request';
-      toast.error(message);
+      toast.error(message, { duration: 5000 });
     },
   });
 
@@ -500,12 +612,12 @@ function AdminRequestsTab() {
     mutationFn: (uid: string) => adminApi.denyAdmin(uid),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'requests'] });
-      toast.success('Admin request denied');
+      toast.success('Admin request denied', { duration: 3000 });
     },
     onError: (err) => {
       const message =
         err instanceof Error ? err.message : 'Failed to deny request';
-      toast.error(message);
+      toast.error(message, { duration: 5000 });
     },
   });
 
@@ -521,7 +633,7 @@ function AdminRequestsTab() {
 
   if (requests.length === 0) {
     return (
-      <div className="rounded-xl border border-secondary/40 bg-white p-12 text-center shadow-warm-xs">
+      <div className="rounded-xl border border-secondary/40 bg-card p-12 text-center shadow-warm-xs">
         <UserCheckIcon className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />
         <h3 className="font-display font-semibold text-foreground mb-1">
           No pending requests
@@ -538,7 +650,7 @@ function AdminRequestsTab() {
       {requests.map((user) => (
         <div
           key={user.uid}
-          className="rounded-xl border border-secondary/40 bg-white p-4 shadow-warm-xs flex items-center justify-between"
+          className="rounded-xl border border-secondary/40 bg-card p-4 shadow-warm-xs flex items-center justify-between"
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-semibold text-sm shrink-0">
@@ -602,12 +714,12 @@ function SettingsTab() {
       adminApi.updateSettings(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] });
-      toast.success('Settings updated');
+      toast.success('Settings updated', { duration: 3000 });
     },
     onError: (err) => {
       const message =
         err instanceof Error ? err.message : 'Failed to update settings';
-      toast.error(message);
+      toast.error(message, { duration: 5000 });
     },
   });
 
@@ -616,12 +728,12 @@ function SettingsTab() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] });
       setLogoPreview(null);
-      toast.success('Logo uploaded successfully');
+      toast.success('Logo uploaded successfully', { duration: 3000 });
     },
     onError: (err) => {
       const message =
         err instanceof Error ? err.message : 'Failed to upload logo';
-      toast.error(message);
+      toast.error(message, { duration: 5000 });
     },
   });
 
@@ -640,7 +752,7 @@ function SettingsTab() {
 
   const handleSaveSettings = () => {
     if (!siteName.trim()) {
-      toast.error('Site name cannot be empty');
+      toast.error('Site name cannot be empty', { duration: 5000 });
       return;
     }
     updateSettingsMutation.mutate({ site_name: siteName.trim() });
@@ -659,7 +771,7 @@ function SettingsTab() {
   return (
     <div className="max-w-2xl space-y-8">
       {/* Logo Section */}
-      <div className="rounded-xl border border-secondary/40 bg-white p-6 shadow-warm-xs">
+      <div className="rounded-xl border border-secondary/40 bg-card p-6 shadow-warm-xs">
         <h3 className="font-display font-semibold text-foreground mb-4">
           Site Logo
         </h3>
@@ -703,7 +815,7 @@ function SettingsTab() {
       </div>
 
       {/* Site Name Section */}
-      <div className="rounded-xl border border-secondary/40 bg-white p-6 shadow-warm-xs">
+      <div className="rounded-xl border border-secondary/40 bg-card p-6 shadow-warm-xs">
         <h3 className="font-display font-semibold text-foreground mb-4">
           Site Name
         </h3>
@@ -778,7 +890,7 @@ export default function AdminPage() {
           <TabsList className="bg-muted rounded-lg p-1 mb-6">
             <TabsTrigger
               value="users"
-              className="data-[state=active]:bg-white data-[state=active]:shadow-warm-xs rounded-md text-sm"
+              className="data-[state=active]:bg-card data-[state=active]:shadow-warm-xs rounded-md text-sm"
             >
               Users{' '}
               <Badge className="ml-2 bg-muted-foreground/20 text-muted-foreground border-none">
@@ -787,7 +899,7 @@ export default function AdminPage() {
             </TabsTrigger>
             <TabsTrigger
               value="artifacts"
-              className="data-[state=active]:bg-white data-[state=active]:shadow-warm-xs rounded-md text-sm"
+              className="data-[state=active]:bg-card data-[state=active]:shadow-warm-xs rounded-md text-sm"
             >
               Artifacts{' '}
               <Badge className="ml-2 bg-muted-foreground/20 text-muted-foreground border-none">
@@ -797,7 +909,7 @@ export default function AdminPage() {
             {isOwner && (
               <TabsTrigger
                 value="requests"
-                className="data-[state=active]:bg-white data-[state=active]:shadow-warm-xs rounded-md text-sm"
+                className="data-[state=active]:bg-card data-[state=active]:shadow-warm-xs rounded-md text-sm"
               >
                 <UserCheckIcon className="h-4 w-4 mr-1.5" />
                 Requests
@@ -806,7 +918,7 @@ export default function AdminPage() {
             {isOwner && (
               <TabsTrigger
                 value="settings"
-                className="data-[state=active]:bg-white data-[state=active]:shadow-warm-xs rounded-md text-sm"
+                className="data-[state=active]:bg-card data-[state=active]:shadow-warm-xs rounded-md text-sm"
               >
                 <SettingsIcon className="h-4 w-4 mr-1.5" />
                 Settings

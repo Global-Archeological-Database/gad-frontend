@@ -37,7 +37,7 @@ export default function ArtifactsPage() {
   );
 
   return (
-    <main id="main-content" className="min-h-screen bg-background">
+    <main id="main-content" className="min-h-[100dvh] bg-background">
       {/* Page Header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
         <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground">

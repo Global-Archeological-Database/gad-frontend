@@ -53,7 +53,7 @@ export default function ArtifactCard({ artifact, adminMode, onDelete }: Artifact
         />
 
         {/* Badges top-right */}
-        <div className="absolute top-3 right-3 flex flex-col gap-1 z-10">
+        <div className="absolute top-3 right-3 flex flex-wrap flex-col gap-1 z-10">
           {artifact.is_3d && (
             <Badge className="bg-primary/90 text-white text-[10px] px-1.5 py-0.5 backdrop-blur-sm border-none uppercase tracking-wider">
               3D
@@ -71,7 +71,7 @@ export default function ArtifactCard({ artifact, adminMode, onDelete }: Artifact
         </div>
 
         {/* Hover overlay — "View Details" */}
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4 z-10">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4 z-10">
           <span className="text-white text-xs font-medium tracking-widest uppercase">
             View Details
           </span>
@@ -121,7 +121,7 @@ export default function ArtifactCard({ artifact, adminMode, onDelete }: Artifact
             <Button
               variant="destructive"
               size="sm"
-              className="bg-destructive/90 hover:bg-destructive shadow-warm-sm text-destructive-foreground h-7 w-7 p-0"
+              className="bg-destructive/90 hover:bg-destructive shadow-warm-sm text-destructive-foreground h-10 w-10 p-0"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(artifact);

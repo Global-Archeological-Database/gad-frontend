@@ -20,7 +20,7 @@ export function ThemeToggle() {
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="h-7 w-7 rounded-full bg-muted"
+            className="h-9 w-9 rounded-full bg-muted"
           />
         ))}
       </div>
@@ -43,10 +43,10 @@ export function ThemeToggle() {
             title={label}
             aria-label={label}
             className={cn(
-              "h-7 w-7 rounded-full flex items-center justify-center",
+              "h-9 w-9 rounded-full flex items-center justify-center",
               "transition-all duration-200",
               isActive
-                ? "bg-background shadow-warm-xs text-foreground" 
+                ? "bg-background shadow-warm-xs text-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
             )}
           >
