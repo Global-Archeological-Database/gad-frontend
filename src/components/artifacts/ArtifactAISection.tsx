@@ -5,40 +5,50 @@ import { motion } from "framer-motion";
 import { SparklesIcon, AlertCircleIcon, InfoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { aiApi } from "@/lib/api";
+import { formatAIResponse } from "@/lib/formatAIResponse";
 
 interface ArtifactAISectionProps {
   artifactId: string;
   existingAnalysis?: string | null;
 }
 
-/** Renders raw AI analysis text into structured sections. */
+/** Renders AI analysis text into structured sections with proper formatting. */
 function AnalysisRenderer({ text }: { text: string }) {
-  const sections = text.split(/^## /m).filter(Boolean);
+  // First clean the text — strip all markdown symbols
+  const cleaned = formatAIResponse(text);
+
+  // Split into sections by detecting "Heading:" pattern or blank lines
+  const sections = cleaned.split(/\n\n+/);
 
   if (sections.length <= 1) {
-    return <p className="text-sm leading-relaxed text-foreground">{text}</p>;
+    return <p className="text-sm leading-relaxed text-foreground">{cleaned}</p>;
   }
 
   return (
     <div className="space-y-4">
-      {sections.map((section, i) => {
-        const firstNewline = section.indexOf("\n");
-        const heading =
-          firstNewline === -1 ? section : section.slice(0, firstNewline);
-        const body =
-          firstNewline === -1 ? "" : section.slice(firstNewline).trim();
+      {sections.map((section, idx) => {
+        const lines = section.split('\n');
+        const firstLine = lines[0];
+        // Check if first line is a heading (ends with colon and is reasonably short)
+        const isHeading = firstLine.endsWith(':') && firstLine.length < 60;
+
+        if (isHeading) {
+          return (
+            <div key={idx}>
+              <h4 className="font-display font-semibold text-sm uppercase tracking-wider text-primary mb-1.5">
+                {firstLine.replace(/:$/, '')}
+              </h4>
+              <p className="text-sm text-foreground leading-relaxed prose-archaeological">
+                {lines.slice(1).join('\n').trim()}
+              </p>
+            </div>
+          );
+        }
 
         return (
-          <div key={i}>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-primary pt-3 border-t border-secondary/30 first:pt-0 first:border-t-0">
-              {heading.trim()}
-            </h3>
-            {body && (
-              <p className="mt-1.5 text-sm leading-relaxed text-foreground">
-                {body}
-              </p>
-            )}
-          </div>
+          <p key={idx} className="text-sm text-foreground leading-relaxed">
+            {section}
+          </p>
         );
       })}
     </div>
