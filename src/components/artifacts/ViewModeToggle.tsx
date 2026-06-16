@@ -26,7 +26,7 @@ export default function ViewModeToggle({ value, onChange }: ViewModeToggleProps)
           className={cn(
             "flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md transition-all duration-200",
             value === option.value
-              ? "bg-white shadow-warm-xs text-foreground font-medium"
+              ? "bg-card shadow-warm-xs text-foreground font-medium"
               : "text-muted-foreground hover:text-foreground"
           )}
           aria-label={`${option.label} view`}

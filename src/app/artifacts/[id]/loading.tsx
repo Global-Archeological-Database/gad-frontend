@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ArtifactDetailLoading() {
   return (
-    <main className="min-h-screen bg-background">
+    <main id="main-content" className="min-h-screen bg-background">
       {/* HERO SKELETON — matches h-[55vh] max-h-[500px] min-h-[300px] */}
       <div className="relative h-[55vh] max-h-[500px] min-h-[300px] overflow-hidden bg-muted animate-pulse">
         {/* Age color accent bar skeleton */}

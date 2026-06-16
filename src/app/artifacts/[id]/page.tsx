@@ -1,9 +1,9 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import {
   ChevronLeftIcon,
+  ChevronRightIcon,
   MapPinIcon,
   CalendarIcon,
   GlobeIcon,
@@ -16,6 +16,7 @@ import {
 import StaticMap from "@/components/artifacts/StaticMap";
 import ArtifactAISection from "@/components/artifacts/ArtifactAISection";
 import SimilarArtifactsSection from "@/components/artifacts/SimilarArtifactsSection";
+import { ArtifactImage } from "@/components/artifacts/ArtifactImage";
 import { getAgeColor } from "@/lib/ageColor";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -169,7 +170,21 @@ export default async function ArtifactDetailPage({ params }: PageProps) {
   ];
 
   return (
-    <main className="min-h-screen bg-background">
+    <main id="main-content" className="min-h-screen bg-background">
+      {/* Breadcrumb navigation */}
+      <nav aria-label="Breadcrumb" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        <ol className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <li>
+            <Link href="/artifacts" className="hover:text-foreground transition-colors">
+              Collection
+            </Link>
+          </li>
+          <li><ChevronRightIcon className="h-3 w-3" aria-hidden="true" /></li>
+          <li className="text-foreground font-medium truncate max-w-[200px]" aria-current="page">
+            {artifact.title}
+          </li>
+        </ol>
+      </nav>
       <article className="max-w-7xl mx-auto">
         {/* ===== HERO SECTION ===== */}
         <div className="relative">
@@ -190,12 +205,12 @@ export default async function ArtifactDetailPage({ params }: PageProps) {
           {/* Hero image */}
           <div className="relative h-[55vh] max-h-[500px] min-h-[300px] overflow-hidden bg-muted">
             {artifact.image_url ? (
-              <Image
+              <ArtifactImage
                 src={artifact.image_url}
                 alt={artifact.title}
                 fill
                 priority
-                className="object-cover image-blur-load"
+                className="object-cover"
                 sizes="100vw"
               />
             ) : (

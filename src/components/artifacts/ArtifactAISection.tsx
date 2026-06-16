@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { SparklesIcon, AlertCircleIcon, InfoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,13 @@ function AnalysisRenderer({ text }: { text: string }) {
   );
 }
 
+const ANALYSIS_STAGES = [
+  { label: 'Reading artifact data...', duration: 800 },
+  { label: 'Examining material composition...', duration: 1500 },
+  { label: 'Researching historical context...', duration: 2000 },
+  { label: 'Preparing analysis...', duration: 1000 },
+];
+
 export default function ArtifactAISection({
   artifactId,
   existingAnalysis,
@@ -54,6 +61,22 @@ export default function ArtifactAISection({
   );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stageIndex, setStageIndex] = useState(0);
+
+  useEffect(() => {
+    if (!isAnalyzing) {
+      setStageIndex(0);
+      return;
+    }
+
+    let cumulative = 0;
+    const timers = ANALYSIS_STAGES.map((stage, i) => {
+      cumulative += stage.duration;
+      return setTimeout(() => setStageIndex(i), cumulative);
+    });
+
+    return () => timers.forEach(clearTimeout);
+  }, [isAnalyzing]);
 
   const runAnalysis = async () => {
     setIsAnalyzing(true);
@@ -90,9 +113,9 @@ export default function ArtifactAISection({
         <div className="rounded-xl border border-primary/20 bg-primary/4 p-6">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-            <span className="text-sm text-muted-foreground">
-              Analyzing artifact...
-            </span>
+            <p className="text-sm text-[#8B7355] animate-pulse">
+              {ANALYSIS_STAGES[stageIndex]?.label || 'Almost done...'}
+            </p>
           </div>
 
           <div className="space-y-3">
@@ -178,7 +201,7 @@ export default function ArtifactAISection({
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="rounded-xl border border-secondary/40 bg-white shadow-warm-xs overflow-hidden"
+          className="rounded-xl border border-secondary/40 bg-card shadow-warm-xs overflow-hidden"
         >
           <div className="p-5 prose-archaeological">
             <AnalysisRenderer text={analysis} />
@@ -213,7 +236,7 @@ export default function ArtifactAISection({
       </div>
 
       {/* Empty state card */}
-      <div className="rounded-xl border-2 border-dashed border-secondary/30 bg-white p-8 flex flex-col items-center text-center gap-4">
+      <div className="rounded-xl border-2 border-dashed border-secondary/30 bg-card p-8 flex flex-col items-center text-center gap-4">
         <div className="w-12 h-12 rounded-full bg-primary/5 flex items-center justify-center">
           <SparklesIcon className="h-6 w-6 text-primary/60" />
         </div>

@@ -112,7 +112,7 @@ export default function LoginForm() {
           autoComplete="email"
           {...register('email')}
           className={cn(
-            'h-10 border-secondary/60 bg-white',
+            'h-10 border-secondary/60 bg-background',
             'focus:border-primary/60 focus:ring-2 focus:ring-primary/10',
             'transition-all duration-200',
             'placeholder:text-muted-foreground/60',
@@ -139,7 +139,7 @@ export default function LoginForm() {
             autoComplete="current-password"
             {...register('password')}
             className={cn(
-              'h-10 border-secondary/60 bg-white pr-10',
+              'h-10 border-secondary/60 bg-background pr-10',
               'focus:border-primary/60 focus:ring-2 focus:ring-primary/10',
               'transition-all duration-200',
               'placeholder:text-muted-foreground/60',

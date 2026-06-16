@@ -126,7 +126,7 @@ export default function RegisterForm() {
           autoComplete="name"
           {...register('displayName')}
           className={cn(
-            'h-10 border-secondary/60 bg-white',
+            'h-10 border-secondary/60 bg-background',
             'focus:border-primary/60 focus:ring-2 focus:ring-primary/10',
             'transition-all duration-200',
             'placeholder:text-muted-foreground/60',
@@ -152,7 +152,7 @@ export default function RegisterForm() {
           autoComplete="email"
           {...register('email')}
           className={cn(
-            'h-10 border-secondary/60 bg-white',
+            'h-10 border-secondary/60 bg-background',
             'focus:border-primary/60 focus:ring-2 focus:ring-primary/10',
             'transition-all duration-200',
             'placeholder:text-muted-foreground/60',
@@ -179,7 +179,7 @@ export default function RegisterForm() {
             autoComplete="new-password"
             {...register('password')}
             className={cn(
-              'h-10 border-secondary/60 bg-white pr-10',
+              'h-10 border-secondary/60 bg-background pr-10',
               'focus:border-primary/60 focus:ring-2 focus:ring-primary/10',
               'transition-all duration-200',
               'placeholder:text-muted-foreground/60',
@@ -204,7 +204,7 @@ export default function RegisterForm() {
               <li key={req.label} className="flex items-center gap-2 text-xs">
                 <motion.div
                   animate={{
-                    backgroundColor: req.test(passwordValue) ? '#16a34a' : '#D4C5A9',
+                    backgroundColor: req.test(passwordValue) ? 'var(--green-600, #16a34a)' : 'var(--border)',
                   }}
                   className="w-3.5 h-3.5 rounded-full flex items-center justify-center"
                 >
@@ -215,7 +215,7 @@ export default function RegisterForm() {
                 <span
                   className={
                     req.test(passwordValue)
-                      ? 'text-green-700'
+                      ? 'text-green-600 dark:text-green-500'
                       : 'text-muted-foreground'
                   }
                 >
@@ -245,7 +245,7 @@ export default function RegisterForm() {
             autoComplete="new-password"
             {...register('confirmPassword')}
             className={cn(
-              'h-10 border-secondary/60 bg-white pr-10',
+              'h-10 border-secondary/60 bg-background pr-10',
               'focus:border-primary/60 focus:ring-2 focus:ring-primary/10',
               'transition-all duration-200',
               'placeholder:text-muted-foreground/60',

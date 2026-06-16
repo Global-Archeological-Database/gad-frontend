@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
+import { formatAIResponse } from '@/lib/formatAIResponse';
 
 interface ChatMessageProps {
   role: 'user' | 'model';
@@ -32,7 +33,7 @@ export default function ChatMessage({ role, content, index }: ChatMessageProps) 
           </div>
           <div className="bg-muted rounded-2xl rounded-tl-sm px-3.5 py-2.5">
             <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-              {content}
+              {formatAIResponse(content)}
             </p>
           </div>
         </div>

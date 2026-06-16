@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import LoginForm from '@/components/auth/LoginForm';
+import { GADLogo } from '@/components/ui/GADLogo';
 
 const quotes = [
   { text: 'The past is a foreign country: they do things differently there.', author: 'L.P. Hartley' },
@@ -48,13 +49,8 @@ export default function LoginPage() {
         <div className="relative z-10 flex flex-col h-full p-12">
           <div className="mb-auto">
             {/* Logo */}
-            <div className="flex items-center gap-3 mb-12">
-              <div className="w-10 h-10 rounded-xl bg-[#B8860B] flex items-center justify-center">
-                <span className="text-white font-display font-bold text-lg">⚱</span>
-              </div>
-              <span className="font-display text-2xl font-bold text-white">
-                GAD
-              </span>
+            <div className="mb-12">
+              <GADLogo size="md" variant="full" />
             </div>
 
             <h2 className="font-display text-4xl font-bold text-white leading-tight mb-4">
@@ -62,7 +58,7 @@ export default function LoginPage() {
             </h2>
             <p className="text-white/60 text-sm leading-relaxed max-w-sm">
               A global, open-access database of archaeological artifacts
-              — built by researchers, for researchers.
+              — open access · free forever.
             </p>
           </div>
 
@@ -87,13 +83,8 @@ export default function LoginPage() {
         <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12">
           <div className="w-full max-w-sm">
             {/* Mobile logo (only on mobile) */}
-            <div className="flex items-center gap-2.5 mb-8 lg:hidden">
-              <div className="w-8 h-8 rounded-lg bg-[#B8860B] flex items-center justify-center">
-                <span className="text-white font-display font-bold text-sm">⚱</span>
-              </div>
-              <span className="font-display text-xl font-bold text-foreground">
-                GAD
-              </span>
+            <div className="mb-8 lg:hidden">
+              <GADLogo size="sm" variant="icon-only" />
             </div>
 
             {/* Form heading */}

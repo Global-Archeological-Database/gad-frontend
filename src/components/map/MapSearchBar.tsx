@@ -42,7 +42,7 @@ export default function MapSearchBar({
     <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center">
       {/* Search bar container */}
       <div
-        className="flex items-center gap-2 bg-white/90 backdrop-blur-md
+        className="flex items-center gap-2 bg-background/90 backdrop-blur-md
                     border border-secondary/80 rounded-full
                     shadow-warm-lg hover:shadow-warm-xl
                     transition-shadow duration-300
@@ -57,7 +57,7 @@ export default function MapSearchBar({
           onChange={(e) => setSearchQuery(e.target.value)}
         />
         {searchQuery && (
-          <button onClick={handleClear} aria-label="Clear search">
+          <button type="button" onClick={handleClear} aria-label="Clear search">
             <X className="h-4 w-4 text-muted-foreground" />
           </button>
         )}
@@ -66,15 +66,15 @@ export default function MapSearchBar({
         )}
       </div>
 
-      {/* Result count — shown when a filter is active */}
-      {isFilterActive && (
-        <div
-          className="mt-2 text-center text-xs text-muted-foreground bg-white/80 backdrop-blur-sm
-                      rounded-full px-3 py-1 shadow-warm-sm"
-        >
-          Showing {filteredCount} of {totalCount} artifacts
-        </div>
-      )}
+      {/* Result count — always visible */}
+      <div
+        className="mt-2 text-center text-xs text-muted-foreground bg-background/80 backdrop-blur-sm
+                    rounded-full px-3 py-1 shadow-warm-sm"
+      >
+        {isFilterActive
+          ? `Showing ${filteredCount} of ${totalCount} artifacts`
+          : `${totalCount} artifacts on map`}
+      </div>
 
       {/* Loading indicator */}
       {isLoading && (

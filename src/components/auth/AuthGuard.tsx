@@ -23,7 +23,7 @@ export default function AuthGuard({
 
     if (!user) {
       router.replace('/login');
-    } else if (requireAdmin && user.role !== 'admin') {
+    } else if (requireAdmin && user.role !== 'admin' && user.role !== 'owner') {
       router.replace('/');
     }
   }, [isInitialized, user, requireAdmin, router]);
@@ -36,7 +36,7 @@ export default function AuthGuard({
     return null;
   }
 
-  if (requireAdmin && user.role !== 'admin') {
+  if (requireAdmin && user.role !== 'admin' && user.role !== 'owner') {
     return null;
   }
 

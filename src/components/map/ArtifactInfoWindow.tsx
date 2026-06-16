@@ -32,7 +32,7 @@ export default function ArtifactInfoWindow({
         style={{
           maxWidth: 260,
           fontFamily: 'system-ui, sans-serif',
-          color: '#1A1208',
+          color: 'inherit',
         }}
       >
         {/* Thumbnail */}
@@ -64,7 +64,7 @@ export default function ArtifactInfoWindow({
             fontSize: 14,
             fontWeight: 600,
             lineHeight: 1.3,
-            color: '#1A1208',
+            color: 'inherit',
           }}
         >
           {artifact.title}
@@ -76,7 +76,7 @@ export default function ArtifactInfoWindow({
             style={{
               margin: '4px 0',
               fontSize: 12,
-              color: '#722F37',
+              color: 'var(--color-cultural-origin, #722F37)',
               fontStyle: 'italic',
             }}
           >
@@ -90,7 +90,7 @@ export default function ArtifactInfoWindow({
             style={{
               margin: '2px 0 8px',
               fontSize: 11,
-              color: '#888780',
+              color: 'var(--muted-foreground, #888780)',
             }}
           >
             {artifact.age}
@@ -122,8 +122,8 @@ export default function ArtifactInfoWindow({
               fontSize: 12,
               fontWeight: 500,
               backgroundColor: 'transparent',
-              color: '#888780',
-              border: '1px solid #D4C5A9',
+              color: 'var(--muted-foreground, #888780)',
+              border: '1px solid var(--border, #D4C5A9)',
               borderRadius: 4,
               cursor: 'pointer',
             }}

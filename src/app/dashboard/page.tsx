@@ -1,28 +1,34 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   DatabaseIcon,
   SparklesIcon,
   GlobeIcon,
   EyeIcon,
-  PlusIcon,
   PencilIcon,
   Trash2Icon,
   ArchiveIcon,
+  PlusIcon,
+  LogOutIcon,
+  ArrowUpDownIcon,
+  EyeOffIcon,
+  SparkleIcon,
 } from 'lucide-react';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 import AuthGuard from '@/components/auth/AuthGuard';
 import ArtifactCard from '@/components/artifacts/ArtifactCard';
-import ArtifactSubmitForm from '@/components/artifacts/ArtifactSubmitForm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -34,8 +40,14 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAuthStore } from '@/store/authStore';
-import { useUiStore } from '@/store/uiStore';
 import { artifactsApi, authApi } from '@/lib/api';
 import { artifactKeys } from '@/hooks/useArtifacts';
 import type { Artifact } from '@/types/artifact';
@@ -61,6 +73,44 @@ function getUniqueCountries(artifacts: Artifact[]): number {
     if (c) countries.add(c);
   });
   return countries.size;
+}
+
+/* ─── Sort options ─── */
+
+type SortOption = 'newest' | 'oldest' | 'most-viewed' | 'has-analysis' | 'alphabetical';
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'most-viewed', label: 'Most viewed' },
+  { value: 'has-analysis', label: 'Has AI analysis' },
+  { value: 'alphabetical', label: 'Alphabetical' },
+];
+
+function sortArtifacts(artifacts: Artifact[], sort: SortOption): Artifact[] {
+  const sorted = [...artifacts];
+  switch (sort) {
+    case 'newest':
+      return sorted.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    case 'oldest':
+      return sorted.sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+    case 'most-viewed':
+      return sorted.sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
+    case 'has-analysis':
+      return sorted.sort((a, b) => {
+        if (a.ai_analysis && !b.ai_analysis) return -1;
+        if (!a.ai_analysis && b.ai_analysis) return 1;
+        return 0;
+      });
+    case 'alphabetical':
+      return sorted.sort((a, b) => a.title.localeCompare(b.title));
+    default:
+      return sorted;
+  }
 }
 
 /* ─── WelcomeHeader ─── */
@@ -114,7 +164,7 @@ function StatsRow({ artifacts }: { artifacts: Artifact[] }) {
       {stats.map(({ label, value, icon: Icon, color }) => (
         <div
           key={label}
-          className="rounded-xl border border-secondary/40 bg-white p-4 shadow-warm-xs"
+          className="rounded-xl border border-secondary/40 bg-card p-4 shadow-warm-xs"
         >
           <div className="flex items-start justify-between">
             <div>
@@ -173,11 +223,27 @@ function UserArtifactGrid({
         <div key={artifact.id} className="group relative">
           <ArtifactCard artifact={artifact} />
 
+          {/* View count badge */}
+          {(artifact.view_count ?? 0) > 0 && (
+            <div className="absolute bottom-3 left-3 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-background/80 backdrop-blur-sm text-[11px] text-muted-foreground shadow-warm-xs z-10">
+              <EyeIcon className="h-3 w-3" />
+              <span>{artifact.view_count}</span>
+            </div>
+          )}
+
+          {/* AI analysis sparkle badge */}
+          {artifact.ai_analysis && (
+            <div className="absolute bottom-3 right-3 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50/90 dark:bg-amber-950/80 backdrop-blur-sm text-[11px] text-amber-700 dark:text-amber-300 shadow-warm-xs z-10">
+              <SparkleIcon className="h-3 w-3" />
+              <span>AI Analysis</span>
+            </div>
+          )}
+
           {/* Edit/Delete overlay — visible on group-hover */}
           <div className="absolute top-2 left-2 right-2 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <button
               onClick={() => onEdit(artifact)}
-              className="p-1.5 rounded-lg bg-white/90 backdrop-blur-sm shadow-warm-sm text-foreground hover:bg-white transition-all duration-150 hover:shadow-warm-md"
+              className="p-1.5 rounded-lg bg-background/90 backdrop-blur-sm shadow-warm-sm text-foreground hover:bg-background transition-all duration-150 hover:shadow-warm-md"
               aria-label="Edit artifact"
             >
               <PencilIcon className="h-3.5 w-3.5" />
@@ -187,7 +253,7 @@ function UserArtifactGrid({
               <AlertDialogTrigger
                 render={
                   <button
-                    className="p-1.5 rounded-lg bg-white/90 backdrop-blur-sm shadow-warm-sm text-destructive hover:bg-destructive/10 transition-all duration-150"
+                    className="p-1.5 rounded-lg bg-background/90 backdrop-blur-sm shadow-warm-sm text-destructive hover:bg-destructive/10 transition-all duration-150"
                     aria-label="Delete artifact"
                   >
                     <Trash2Icon className="h-3.5 w-3.5" />
@@ -222,14 +288,15 @@ function UserArtifactGrid({
   );
 }
 
-/* ─── ProfileSettings ─── */
+/* ─── ProfileCard ─── */
 
-function ProfileSettings({ user }: { user: NonNullable<ReturnType<typeof useAuthStore.getState>['user']> }) {
+function ProfileCard({ user }: { user: NonNullable<ReturnType<typeof useAuthStore.getState>['user']> }) {
   const [displayName, setDisplayName] = useState(user.display_name ?? '');
   const [showNamePublicly, setShowNamePublicly] = useState(
     user.settings?.show_name_publicly ?? true
   );
   const [saving, setSaving] = useState(false);
+  const initial = (user.display_name || user.email)[0].toUpperCase();
 
   const handleSave = async () => {
     setSaving(true);
@@ -250,15 +317,31 @@ function ProfileSettings({ user }: { user: NonNullable<ReturnType<typeof useAuth
   };
 
   return (
-    <div className="rounded-xl border border-secondary/40 bg-white shadow-warm-xs overflow-hidden sticky top-20">
+    <div className="rounded-xl border border-secondary/40 bg-card shadow-warm-xs overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 bg-muted/20 border-b border-secondary/30">
         <h2 className="font-display font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-          Profile Settings
+          Profile
         </h2>
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Avatar + Email */}
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-[#8B6914] flex items-center justify-center text-white font-display font-bold text-lg shrink-0">
+            {initial}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">
+              {user.display_name || 'Anonymous'}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Joined {formatDate(user.created_at)}
+            </p>
+          </div>
+        </div>
+
         {/* Display Name */}
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground uppercase tracking-wider">
@@ -275,7 +358,7 @@ function ProfileSettings({ user }: { user: NonNullable<ReturnType<typeof useAuth
               size="sm"
               variant="outline"
               onClick={handleSave}
-              disabled={displayName === user.display_name || saving}
+              disabled={displayName === (user.display_name ?? '') || saving}
               className="h-9 shrink-0"
             >
               {saving ? 'Saving...' : 'Save'}
@@ -293,17 +376,106 @@ function ProfileSettings({ user }: { user: NonNullable<ReturnType<typeof useAuth
           </div>
           <Switch
             checked={showNamePublicly}
-            onCheckedChange={setShowNamePublicly}
+            onCheckedChange={(checked) => {
+              setShowNamePublicly(checked);
+              // Auto-save on toggle
+              authApi.updateProfile({
+                settings: { show_name_publicly: checked },
+              }).then((_data) => {
+                useAuthStore.getState().setUser({
+                  ...user,
+                  settings: { ...user.settings, show_name_publicly: checked },
+                });
+                toast.success('Visibility updated');
+              }).catch(() => {
+                setShowNamePublicly(!checked);
+                toast.error('Failed to update visibility');
+              });
+            }}
             className="data-[state=checked]:bg-primary shrink-0 mt-0.5"
           />
         </div>
+      </div>
+    </div>
+  );
+}
 
-        <div className="pt-2 border-t border-secondary/30">
-          <p className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Email: </span>
-            {user.email}
-          </p>
+/* ─── AppearanceCard ─── */
+
+function AppearanceCard() {
+  return (
+    <div className="rounded-xl border border-secondary/40 bg-card shadow-warm-xs overflow-hidden">
+      <div className="px-4 py-3 bg-muted/20 border-b border-secondary/30">
+        <h2 className="font-display font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+          Appearance
+        </h2>
+      </div>
+
+      <div className="p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-foreground">Theme</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Switch between light, dark, and system theme
+            </p>
+          </div>
+          <ThemeToggle />
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── AccountCard ─── */
+
+function AccountCard({ user }: { user: NonNullable<ReturnType<typeof useAuthStore.getState>['user']> }) {
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOut(auth);
+      useAuthStore.getState().setUser(null);
+      toast.success('Signed out successfully');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to sign out';
+      toast.error(message);
+      setSigningOut(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-secondary/40 bg-card shadow-warm-xs overflow-hidden">
+      <div className="px-4 py-3 bg-muted/20 border-b border-secondary/30">
+        <h2 className="font-display font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+          Account
+        </h2>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {/* Role */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-foreground">Role</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Your account type
+            </p>
+          </div>
+          <span className="inline-flex items-center rounded-full border border-secondary/50 bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-foreground capitalize">
+            {user.role || 'user'}
+          </span>
+        </div>
+
+        {/* Sign out */}
+        <Button
+          variant="outline"
+          className="w-full gap-2 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+          onClick={handleSignOut}
+          disabled={signingOut}
+        >
+          <LogOutIcon className="h-4 w-4" />
+          {signingOut ? 'Signing out...' : 'Sign out'}
+        </Button>
       </div>
     </div>
   );
@@ -315,10 +487,9 @@ export default function DashboardPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
-  const setIsSubmitFormOpen = useUiStore((s) => s.setIsSubmitFormOpen);
 
-  // Edit state — which artifact is being edited
-  const [editingArtifact, setEditingArtifact] = useState<Artifact | null>(null);
+  // Sort state
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
 
   // Fetch user's artifacts
   const myArtifactsQuery = useQuery({
@@ -330,6 +501,9 @@ export default function DashboardPage() {
 
   const myArtifacts = myArtifactsQuery.data?.artifacts ?? [];
   const isLoadingArtifacts = myArtifactsQuery.isLoading;
+
+  // Sort artifacts
+  const sortedArtifacts = sortArtifacts(myArtifacts, sortBy);
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -349,15 +523,15 @@ export default function DashboardPage() {
   };
 
   const handleEdit = (artifact: Artifact) => {
-    setEditingArtifact(artifact);
-    setIsSubmitFormOpen(true);
+    // Navigate to submit page with edit context
+    router.push(`/submit?edit=${artifact.id}`);
   };
 
   if (!user) return null;
 
   return (
     <AuthGuard>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome section */}
         <WelcomeHeader user={user} />
 
@@ -372,13 +546,30 @@ export default function DashboardPage() {
               <h2 className="font-display text-xl font-semibold">
                 My Artifacts
               </h2>
-              <Link
-                href="/submit"
-                className="inline-flex items-center justify-center rounded-lg border border-primary/30 text-primary hover:bg-primary/5 h-8 gap-1.5 px-2.5 text-sm font-medium whitespace-nowrap transition-all"
-              >
-                <PlusIcon className="h-4 w-4" />
-                Add Artifact
-              </Link>
+              <div className="flex items-center gap-2">
+                {/* Sort dropdown */}
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                  <SelectTrigger className="h-8 gap-1.5 px-2.5 text-sm w-[140px]">
+                    <ArrowUpDownIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SORT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Link
+                  href="/submit"
+                  className="inline-flex items-center justify-center rounded-lg border border-primary/30 text-primary hover:bg-primary/5 h-8 gap-1.5 px-2.5 text-sm font-medium whitespace-nowrap transition-all"
+                >
+                  <PlusIcon className="h-4 w-4" />
+                  Add Artifact
+                </Link>
+              </div>
             </div>
 
             {isLoadingArtifacts ? (
@@ -386,7 +577,7 @@ export default function DashboardPage() {
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div
                     key={`skeleton-${i}`}
-                    className="rounded-xl overflow-hidden bg-white border border-secondary/40"
+                    className="rounded-xl overflow-hidden bg-card border border-secondary/40"
                   >
                     <div className="relative aspect-[4/3] overflow-hidden bg-muted">
                       <div className="absolute inset-0 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer" />
@@ -404,22 +595,21 @@ export default function DashboardPage() {
               </div>
             ) : (
               <UserArtifactGrid
-                artifacts={myArtifacts}
+                artifacts={sortedArtifacts}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
               />
             )}
           </section>
 
-          {/* Right: Profile settings */}
-          <aside>
-            <ProfileSettings user={user} />
+          {/* Right sidebar: Profile, Appearance, Account cards */}
+          <aside className="space-y-4">
+            <ProfileCard user={user} />
+            <AppearanceCard />
+            <AccountCard user={user} />
           </aside>
         </div>
       </main>
-
-      {/* Edit Artifact Form (reuses the submit form via Sheet) */}
-      {editingArtifact && <ArtifactSubmitForm />}
     </AuthGuard>
   );
 }

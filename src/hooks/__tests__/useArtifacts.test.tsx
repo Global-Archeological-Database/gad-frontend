@@ -192,6 +192,7 @@ describe('useCreateArtifact', () => {
       thumbnail_url: null,
       is_3d: false,
       location: null,
+      uploader_name: null,
     };
 
     result.current.mutate(payload);

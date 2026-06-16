@@ -12,36 +12,40 @@ interface ArtifactMarkerProps {
   isDimmed?: boolean;
 }
 
-function getMarkerElement(ageColor: string, isSelected: boolean): HTMLDivElement {
+/**
+ * Build a custom DOM element for the marker.
+ * The marker uses the age color as a SOLID fill with a white border ring,
+ * making it clearly visible against the warm/light map background.
+ */
+function buildMarkerElement(ageColor: string, isSelected: boolean): HTMLDivElement {
+  const size = isSelected ? 22 : 18;
+  const borderWidth = isSelected ? 3 : 2.5;
+
   const el = document.createElement('div');
   el.style.cssText = `
-    width: ${isSelected ? '20px' : '16px'};
-    height: ${isSelected ? '20px' : '16px'};
-    border-radius: 50%;
-    border: ${isSelected ? '2px' : '1.5px'} solid ${ageColor};
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 200ms ease-out;
-    box-shadow: ${isSelected ? `0 0 0 4px ${ageColor}30` : '0 1px 3px rgba(0,0,0,0.2)'};
-  `;
-
-  const inner = document.createElement('div');
-  inner.style.cssText = `
-    width: ${isSelected ? '10px' : '8px'};
-    height: ${isSelected ? '10px' : '8px'};
+    width: ${size}px;
+    height: ${size}px;
     border-radius: 50%;
     background: ${ageColor};
+    border: ${borderWidth}px solid white;
+    box-shadow: ${
+      isSelected
+        ? `0 0 0 3px ${ageColor}40, 0 2px 8px rgba(0,0,0,0.4)`
+        : '0 1px 4px rgba(0,0,0,0.3)'
+    };
+    cursor: pointer;
     transition: all 200ms ease-out;
   `;
 
-  el.appendChild(inner);
   return el;
 }
 
-export default function ArtifactMarker({ artifact, onClick, isSelected = false, isDimmed = false }: ArtifactMarkerProps) {
+export default function ArtifactMarker({
+  artifact,
+  onClick,
+  isSelected = false,
+  isDimmed = false,
+}: ArtifactMarkerProps) {
   // Backend stores coordinates at top level (latitude/longitude) and optionally in location.coordinates
   const lat = artifact.latitude ?? artifact.location?.coordinates?.latitude;
   const lng = artifact.longitude ?? artifact.location?.coordinates?.longitude;
@@ -51,13 +55,11 @@ export default function ArtifactMarker({ artifact, onClick, isSelected = false, 
   const ageColor = getAgeColor(artifact.age);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Create/recreate the DOM element when isSelected or ageColor changes
+  // Rebuild the DOM element when selection state or color changes
   useEffect(() => {
     if (containerRef.current) {
-      // Clear previous children
       containerRef.current.innerHTML = '';
-      // Append the new layered marker element
-      const markerEl = getMarkerElement(ageColor, isSelected);
+      const markerEl = buildMarkerElement(ageColor, isSelected);
       containerRef.current.appendChild(markerEl);
     }
   }, [isSelected, ageColor]);
@@ -71,15 +73,15 @@ export default function ArtifactMarker({ artifact, onClick, isSelected = false, 
           transition: 'opacity 200ms ease-out',
         }}
         onMouseEnter={(e) => {
-          const outerRing = e.currentTarget.firstElementChild as HTMLElement | null;
-          if (outerRing) {
-            outerRing.style.transform = 'scale(1.2)';
+          const dot = e.currentTarget.firstElementChild as HTMLElement | null;
+          if (dot) {
+            dot.style.transform = 'scale(1.25)';
           }
         }}
         onMouseLeave={(e) => {
-          const outerRing = e.currentTarget.firstElementChild as HTMLElement | null;
-          if (outerRing) {
-            outerRing.style.transform = 'scale(1)';
+          const dot = e.currentTarget.firstElementChild as HTMLElement | null;
+          if (dot) {
+            dot.style.transform = 'scale(1)';
           }
         }}
       />

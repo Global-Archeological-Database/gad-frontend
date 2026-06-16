@@ -50,39 +50,82 @@
     --age-early-modern: #2D5A27;
     --age-modern: #4A6FA5;
     --age-unknown: #888780;
+    /* CRITICAL: All overlay surfaces must be fully opaque */
+    --sheet-background: #FDFAF5;
+    --dialog-background: #FFFFFF;
   }
   .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0)
+    /* Core surfaces — deep stone and warm shadow */
+    --background:         #1A1510;   /* Very dark warm brown — like cave walls */
+    --foreground:         #F0EBE0;   /* Warm off-white — parchment in torchlight */
+    --card:               #231F1A;   /* Slightly lighter stone */
+    --card-foreground:    #F0EBE0;
+    --popover:            #231F1A;
+    --popover-foreground: #F0EBE0;
+
+    /* Primary — golden amber shines brighter in dark */
+    --primary:            #C4971A;   /* Brighter gold for dark background */
+    --primary-foreground: #1A1510;
+
+    /* Secondary/muted — warm dark tones */
+    --secondary:          #3D3529;   /* Medium warm brown */
+    --secondary-foreground: #D4C5A9;
+    --muted:              #2A2520;   /* Dark warm muted */
+    --muted-foreground:   #9A8C7D;   /* Warm gray */
+
+    /* Accent — slightly warmer amber */
+    --accent:             #A0522D;   /* Sienna */
+    --accent-foreground:  #F0EBE0;
+
+    /* Destructive */
+    --destructive:        #EF4444;
+    --destructive-foreground: #FFFFFF;
+
+    /* Borders */
+    --border:             #3D3529;   /* Warm dark border */
+    --input:              #3D3529;
+    --ring:               #C4971A;   /* Golden focus ring */
+
+    /* Sidebar — archaeological stone */
+    --sidebar-background: #1A1510;
+    --sidebar-foreground: #F0EBE0;
+    --sidebar-primary: #C4971A;
+    --sidebar-primary-foreground: #1A1510;
+    --sidebar-accent: #3D3529;
+    --sidebar-accent-foreground: #F0EBE0;
+    --sidebar-border: #3D3529;
+    --sidebar-ring: #C4971A;
+
+    /* Chart colors for dark mode */
+    --chart-1: #C4971A;
+    --chart-2: #A0522D;
+    --chart-3: #8B7355;
+    --chart-4: #D4C5A9;
+    --chart-5: #6B5B4F;
+
+    /* Custom GAD design tokens */
+    --color-primary: #C4971A;
+    --color-background: #1A1510;
+    --color-text: #F0EBE0;
+    --color-accent: #A0522D;
+    --color-border: #3D3529;
+
+    /* Sheet and dialog backgrounds */
+    --sheet-background: #231F1A;
+    --dialog-background: #1E1B16;
+
+    /* Age colors for artifact markers — slightly brighter for dark backgrounds */
+    --age-color-stone: #D4C5A9;
+    --age-color-bronze: #CD7F32;
+    --age-color-iron: #9EB0C4;
+    --age-color-medieval: #B8860B;
+    --age-color-industrial: #8B7355;
+    --age-color-modern: #A0522D;
+  }
+
+  /* Auth left panel in dark mode — even darker */
+  .dark .auth-left-panel {
+    background: #0F0D0A;
   }
   * {
     @apply border-border outline-ring/50;
@@ -95,6 +138,31 @@
   }
   h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);
+  }
+
+  /* ── Overlay opacity fixes ─────────────────────────────────────────── */
+  /* Ensure Sheet content wrapper is never transparent */
+  [data-slot="sheet-content"] {
+    background-color: var(--sheet-background, #FDFAF5) !important;
+    opacity: 1 !important;
+  }
+
+  /* Ensure Dialog/AlertDialog content is fully opaque */
+  [data-slot="alert-dialog-content"] {
+    background-color: var(--dialog-background, #FFFFFF) !important;
+    opacity: 1 !important;
+  }
+
+  /* Make Sheet overlay darker so content doesn't bleed through */
+  [data-slot="sheet-overlay"] {
+    background-color: rgba(0, 0, 0, 0.45) !important;
+    backdrop-filter: blur(2px) !important;
+  }
+
+  /* Make AlertDialog overlay darker */
+  [data-slot="alert-dialog-overlay"] {
+    background-color: rgba(0, 0, 0, 0.55) !important;
+    backdrop-filter: blur(2px) !important;
   }
 }
 
@@ -110,6 +178,10 @@
 @keyframes shimmer {
   0%   { background-position: -200% center; }
   100% { background-position: 200% center; }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.8s ease-in-out infinite;
 }
 
 @keyframes grain {
@@ -169,6 +241,12 @@ body::before {
   background-size: 512px 512px;
 }
 
+/* Dark mode — parchment grain overlay reduced */
+.dark body::before {
+  opacity: 0.08;  /* Reduced visibility in dark mode */
+  filter: invert(1);  /* Invert the grain pattern */
+}
+
 /* Custom scrollbar — warm palette */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: #F0EBE0; }
@@ -179,6 +257,20 @@ body::before {
 }
 ::-webkit-scrollbar-thumb:hover { background: #B8860B; }
 
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+  background: #1A1510;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #3D3529;
+  border-color: #1A1510;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4D4435;
+}
+
 /* Smooth scrolling */
 html { scroll-behavior: smooth; }
 
@@ -186,6 +278,12 @@ html { scroll-behavior: smooth; }
 ::selection {
   background: rgba(184, 134, 11, 0.20);
   color: #1A1A2E;
+}
+
+/* Dark mode selection */
+.dark ::selection {
+  background: rgba(196, 151, 26, 0.3);  /* Golden selection */
+  color: #F0EBE0;
 }
 
 /* Focus visible — golden glow */

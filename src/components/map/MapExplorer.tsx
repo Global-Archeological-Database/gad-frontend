@@ -3,18 +3,19 @@
 import { APIProvider, Map } from '@vis.gl/react-google-maps';
 import { useMemo, useState, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import Link from 'next/link';
+import { useTheme } from 'next-themes';
 import { useArtifacts } from '@/hooks/useArtifacts';
 import { useMapStore } from '@/store/mapStore';
 import { useAuthStore } from '@/store/authStore';
-import { useUiStore } from '@/store/uiStore';
 import ArtifactMarker from '@/components/map/ArtifactMarker';
 import ArtifactInfoWindow from '@/components/map/ArtifactInfoWindow';
 import ArtifactDetailPanel from '@/components/artifacts/ArtifactDetailPanel';
-import ArtifactSubmitForm from '@/components/artifacts/ArtifactSubmitForm';
 import MapSearchBar from '@/components/map/MapSearchBar';
+import type { Artifact } from '@/types/artifact';
 
-const MAP_STYLE = [
+const LIGHT_MAP_STYLE = [
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
   { featureType: 'road', stylers: [{ saturation: -20 }] },
   {
@@ -31,16 +32,64 @@ const MAP_STYLE = [
   },
 ];
 
+const DARK_MAP_STYLE = [
+  { elementType: 'geometry', stylers: [{ color: '#1A1510' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#9A8C7D' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#1A1510' }] },
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ color: '#1A2A35' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ color: '#2A2520' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#D4C5A9' }],
+  },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  {
+    featureType: 'administrative',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#3D3529' }],
+  },
+  {
+    featureType: 'administrative',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#9A8C7D' }],
+  },
+];
+
+/**
+ * Hard map bounds — prevents infinite scroll / repeated world maps.
+ * strictBounds: false allows slight overflow for smooth UX.
+ */
+const MAP_RESTRICTION = {
+  latLngBounds: {
+    north: 85,
+    south: -85,
+    west: -180,
+    east: 180,
+  },
+  strictBounds: false,
+};
+
 export default function MapExplorer() {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
   const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
+
+  const { resolvedTheme } = useTheme();
 
   const selectedArtifactId = useMapStore((s) => s.selectedArtifactId);
   const setSelectedArtifactId = useMapStore((s) => s.setSelectedArtifactId);
   const isDetailPanelOpen = useMapStore((s) => s.isDetailPanelOpen);
   const setIsDetailPanelOpen = useMapStore((s) => s.setIsDetailPanelOpen);
   const user = useAuthStore((s) => s.user);
-  const setIsSubmitFormOpen = useUiStore((s) => s.setIsSubmitFormOpen);
 
   // ── Search state ──────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,6 +130,27 @@ export default function MapExplorer() {
     [artifacts, selectedArtifactId],
   );
 
+  // ── Viewport culling — only render markers within current map bounds ──
+  const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
+
+  const handleBoundsChanged = useCallback(
+    (evt: { map: google.maps.Map }) => {
+      setMapBounds(evt.map.getBounds() ?? null);
+    },
+    [],
+  );
+
+  const visibleArtifacts = useMemo(() => {
+    if (!mapBounds || !artifacts) return artifacts || [];
+    return artifacts.filter((a: Artifact) => {
+      const lat = a.latitude ?? a.location?.coordinates?.latitude;
+      const lng = a.longitude ?? a.location?.coordinates?.longitude;
+      if (lat == null || lng == null) return false;
+      return mapBounds.contains({ lat, lng });
+    });
+  }, [artifacts, mapBounds]);
+
+  // ── Handlers ──────────────────────────────────────────────────
   const handleMarkerClick = (id: string) => {
     setSelectedArtifactId(id);
   };
@@ -103,19 +173,23 @@ export default function MapExplorer() {
       <div className="relative w-full h-[100dvh] overflow-hidden">
         {/* Map */}
         <Map
-          defaultCenter={{ lat: 30, lng: 10 }}
+          defaultCenter={{ lat: 25, lng: 15 }}
           defaultZoom={3}
+          minZoom={2}
+          maxZoom={18}
           gestureHandling="greedy"
           disableDefaultUI={true}
-          styles={MAP_STYLE}
+          styles={resolvedTheme === 'dark' ? DARK_MAP_STYLE : LIGHT_MAP_STYLE}
           mapTypeControl={false}
           streetViewControl={false}
           fullscreenControl={false}
           zoomControl={false}
           mapId={mapId}
           className="w-full h-full"
+          restriction={MAP_RESTRICTION}
+          onBoundsChanged={handleBoundsChanged}
         >
-          {artifacts.map((artifact) => {
+          {visibleArtifacts.map((artifact) => {
             const isSelected = artifact.id === selectedArtifactId;
             const isDimmed =
               isFilterActive &&
@@ -152,21 +226,21 @@ export default function MapExplorer() {
 
         {/* Loading indicator */}
         {isLoading && (
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-warm-sm text-xs text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading artifacts...
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-background/95 backdrop-blur-sm rounded-full px-4 py-2 shadow-warm-md text-sm text-muted-foreground">
+            <div className="w-4 h-4 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+            <span>Loading artifacts...</span>
           </div>
         )}
 
-        {/* "+" FAB — only when authenticated */}
+        {/* "+" FAB — only when authenticated — navigates to /submit */}
         {user && (
-          <button
-            onClick={() => setIsSubmitFormOpen(true)}
+          <Link
+            href="/submit"
             className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-warm-xl hover:shadow-golden bg-primary hover:bg-primary/90 transition-all duration-300 hover:scale-110 active:scale-95 flex items-center justify-center"
             aria-label="Submit new artifact"
           >
             <Plus className="h-6 w-6 text-primary-foreground" />
-          </button>
+          </Link>
         )}
 
         {/* Detail Panel */}
@@ -178,9 +252,6 @@ export default function MapExplorer() {
             />
           )}
         </AnimatePresence>
-
-        {/* Submit Form Sheet */}
-        <ArtifactSubmitForm />
       </div>
     </APIProvider>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useMemo } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,30 +11,27 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import type { Artifact } from "@/types/artifact";
 
 interface GalleryFilterBarProps {
   /** Current search query */
   searchQuery: string;
   /** Called when search input changes */
   onSearchChange: (value: string) => void;
-  /** Current condition filter value */
-  condition: string;
-  /** Called when condition filter changes */
-  onConditionChange: (value: string | null) => void;
-  /** Current type filter */
-  activeType: "all" | "2d" | "3d";
-  /** Called when type filter changes */
-  onTypeChange: (type: "all" | "2d" | "3d") => void;
-  /** Current country filter value */
-  country: string;
-  /** Called when country filter changes */
-  onCountryChange: (value: string | null) => void;
-  /** Total count of filtered results */
-  filteredCount: number;
+  /** Current filter state object */
+  filters: { country: string; condition: string; type: "all" | "2d" | "3d"; tag: string };
+  /** Called to update filters */
+  onFiltersChange: (filters: any) => void;
   /** Whether any filters are active (to show clear button) */
   hasActiveFilters: boolean;
   /** Called to clear all filters */
   onClearFilters: () => void;
+  /** Count of filtered results */
+  filteredCount: number;
+  /** Total count of all artifacts */
+  totalCount: number;
+  /** Full artifacts array for computing suggestions */
+  artifacts: Artifact[];
 }
 
 const CONDITION_OPTIONS = [
@@ -55,16 +52,28 @@ const TYPE_OPTIONS = [
 export default function GalleryFilterBar({
   searchQuery,
   onSearchChange,
-  condition,
-  onConditionChange,
-  activeType,
-  onTypeChange,
-  country,
-  onCountryChange,
-  filteredCount,
+  filters,
+  onFiltersChange,
   hasActiveFilters,
   onClearFilters,
+  filteredCount,
+  totalCount,
+  artifacts,
 }: GalleryFilterBarProps) {
+  // ── Compute country suggestions from artifacts ────────────────
+  const countrySuggestions = useMemo(() => {
+    if (!filters.country.trim()) return [];
+    const query = filters.country.toLowerCase();
+    const allCountries = [...new Set(
+      artifacts
+        .map(a => a.location?.country)
+        .filter(Boolean) as string[]
+    )];
+    return allCountries.filter(c =>
+      c.toLowerCase().includes(query)
+    ).sort();
+  }, [artifacts, filters.country]);
+
   return (
     <div className="sticky top-16 z-20 bg-background/95 backdrop-blur-sm border-b border-secondary/40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-3 py-2 overflow-x-auto no-scrollbar">
@@ -80,7 +89,10 @@ export default function GalleryFilterBar({
         </div>
 
         {/* Condition filter — shadcn Select */}
-        <Select value={condition} onValueChange={onConditionChange}>
+        <Select
+          value={filters.condition}
+          onValueChange={(value) => onFiltersChange((prev: any) => ({ ...prev, condition: value }))}
+        >
           <SelectTrigger className="h-8 text-xs rounded-full w-[120px] border-secondary/60 bg-muted/50">
             <SelectValue placeholder="Condition" />
           </SelectTrigger>
@@ -100,28 +112,45 @@ export default function GalleryFilterBar({
               key={type.value}
               className={cn(
                 "h-7 px-3 text-xs rounded-full transition-all duration-200",
-                activeType === type.value
-                  ? "bg-white shadow-warm-xs text-foreground font-medium"
+                filters.type === type.value
+                  ? "bg-card shadow-warm-xs text-foreground font-medium"
                   : "text-muted-foreground hover:text-foreground"
               )}
-              onClick={() => onTypeChange(type.value)}
+              onClick={() => onFiltersChange((prev: any) => ({ ...prev, type: type.value }))}
             >
               {type.label}
             </button>
           ))}
         </div>
 
-        {/* Country filter — simple text input */}
-        <Input
-          className="h-8 text-xs w-36 rounded-full border-secondary/60 bg-muted/50 flex-shrink-0"
-          placeholder="Country..."
-          value={country}
-          onChange={(e) => onCountryChange(e.target.value)}
-        />
+        {/* Country filter — text input with suggestions dropdown */}
+        <div className="relative flex-shrink-0">
+          <Input
+            value={filters.country}
+            onChange={(e) => onFiltersChange((prev: any) => ({ ...prev, country: e.target.value }))}
+            placeholder="Filter by location..."
+            className="h-8 text-xs w-44 rounded-full border-secondary/60 bg-muted/50"
+          />
+          {/* Suggestions dropdown */}
+          {filters.country.length >= 1 && countrySuggestions.length > 0 && (
+            <div className="absolute top-full left-0 mt-1 bg-popover border border-secondary/40 rounded-lg shadow-warm-md z-50 min-w-[160px] overflow-hidden">
+              {countrySuggestions.slice(0, 6).map((country) => (
+                <button
+                  key={country}
+                  type="button"
+                  onClick={() => onFiltersChange((prev: any) => ({ ...prev, country }))}
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors text-foreground"
+                >
+                  {country}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Result count — pushed to the right */}
         <div className="ml-auto flex-shrink-0 text-xs text-muted-foreground whitespace-nowrap">
-          {filteredCount} artifact{filteredCount !== 1 ? "s" : ""}
+          Showing {filteredCount} of {totalCount} artifact{totalCount !== 1 ? "s" : ""}
         </div>
 
         {/* Clear filters — only when any filter active */}

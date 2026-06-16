@@ -1,7 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useEffect } from "react";
 import ArtifactCard from "./ArtifactCard";
+import { ArtifactCardSkeleton } from "./ArtifactCardSkeleton";
+import { queryClient } from "@/lib/queryClient";
 import type { Artifact } from "@/types/artifact";
 
 interface ArtifactGridProps {
@@ -32,26 +35,6 @@ const itemVariants = {
   },
 };
 
-// ── Warm Shimmer Skeleton ──────────────────────────────────────────
-function SkeletonCard() {
-  return (
-    <div className="rounded-xl overflow-hidden bg-white border border-secondary/40">
-      {/* Image skeleton — same aspect ratio as card */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-        <div className="absolute inset-0 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer" />
-      </div>
-      {/* Metadata skeleton */}
-      <div className="p-3 space-y-2">
-        <div className="h-4 bg-muted rounded w-3/4">
-          <div className="h-full w-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer rounded" />
-        </div>
-        <div className="h-3 bg-muted rounded w-1/2">
-          <div className="h-full w-full bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200%_100%] animate-shimmer rounded" />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Empty State ────────────────────────────────────────────────────
 function EmptyState({ onClearFilters }: { onClearFilters?: () => void }) {
@@ -106,12 +89,12 @@ export default function ArtifactGrid({
   filterKey,
   onClearFilters,
 }: ArtifactGridProps) {
-  // Loading state — 12 skeleton cards
+  // Loading state — 12 warm skeleton cards
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {Array.from({ length: 12 }).map((_, i) => (
-          <SkeletonCard key={`skeleton-${i}`} />
+          <ArtifactCardSkeleton key={`skeleton-${i}`} />
         ))}
       </div>
     );
@@ -121,6 +104,19 @@ export default function ArtifactGrid({
   if (artifacts.length === 0) {
     return <EmptyState onClearFilters={onClearFilters} />;
   }
+
+  // Prefetch first 5 artifact detail pages for instant navigation
+  useEffect(() => {
+    if (artifacts && artifacts.length > 0) {
+      artifacts.slice(0, 5).forEach(artifact => {
+        queryClient.prefetchQuery({
+          queryKey: ['artifact', artifact.id],
+          queryFn: () => fetch(`/api/artifacts/${artifact.id}`).then(r => r.json()),
+          staleTime: 5 * 60 * 1000,
+        })
+      })
+    }
+  }, [artifacts])
 
   // Populated state with stagger animation
   return (

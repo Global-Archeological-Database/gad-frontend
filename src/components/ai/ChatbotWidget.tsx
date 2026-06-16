@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, X, SendHorizonal, Trash2 } from 'lucide-react';
+import { Sparkles, X, SendHorizonal, Trash2, Maximize2, Minimize2 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useUiStore } from '@/store/uiStore';
 import { aiApi } from '@/lib/api';
 import ChatMessage from '@/components/ai/ChatMessage';
+import { formatAIResponse } from '@/lib/formatAIResponse';
 
 /* ────────────────────────────────────────────
    Types
@@ -97,17 +98,45 @@ function QuickActions({ onSelect }: { onSelect: (action: string) => void }) {
 }
 
 /* ────────────────────────────────────────────
+   Response Mode Configuration
+   ──────────────────────────────────────────── */
+const RESPONSE_MODES = [
+  { id: 'concise', label: 'Brief', description: 'Short, direct answers' },
+  { id: 'standard', label: 'Normal', description: 'Balanced explanation' },
+  { id: 'detailed', label: 'Detailed', description: 'Thorough academic explanation' },
+  { id: 'report', label: 'Report', description: 'Structured report format' },
+] as const;
+
+type ResponseMode = typeof RESPONSE_MODES[number]['id'];
+
+const getModeInstruction = (mode: ResponseMode): string => {
+  switch (mode) {
+    case 'concise':
+      return 'Respond in 2-4 sentences maximum. Be direct and precise.';
+    case 'standard':
+      return 'Respond in clear paragraphs. Cover the key points without unnecessary detail.';
+    case 'detailed':
+      return 'Provide a comprehensive explanation with context, examples, and scholarly detail. Use clear paragraphs.';
+    case 'report':
+      return 'Structure your response as a brief report with clear section headings (plain text, no markdown symbols). Include: Overview, Key Facts, Significance, and Further Reading suggestions.';
+    default:
+      return '';
+  }
+};
+
+/* ────────────────────────────────────────────
    Chatbot Widget
    ──────────────────────────────────────────── */
 export default function ChatbotWidget() {
   const pathname = usePathname();
   const isChatOpen = useUiStore((s) => s.isChatOpen);
   const setIsChatOpen = useUiStore((s) => s.setIsChatOpen);
-  const isSubmitFormOpen = useUiStore((s) => s.isSubmitFormOpen);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [responseMode, setResponseMode] = useState<ResponseMode>('standard');
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -161,18 +190,23 @@ export default function ChatbotWidget() {
           parts: [{ text: msg.content }],
         }));
 
-        const response = await aiApi.chat(convertedHistory, content);
+        // Prepend mode instruction for the AI
+        const modeInstruction = getModeInstruction(responseMode);
+        const augmentedContent = modeInstruction
+          ? `[Format: ${modeInstruction}]\n\n${content}`
+          : content;
+
+        const response = await aiApi.chat(convertedHistory, augmentedContent);
         setMessages((prev) => [
           ...prev,
-          { role: 'model', content: response.reply },
+          { role: 'model', content: formatAIResponse(response.reply) },
         ]);
       } catch {
         setMessages((prev) => [
           ...prev,
           {
             role: 'model',
-            content:
-              'I apologize, but I encountered an error processing your request. Please try again.',
+            content: formatAIResponse('⚠ I encountered an issue. Please try your question again.'),
             failed: true,
           },
         ]);
@@ -180,8 +214,14 @@ export default function ChatbotWidget() {
         setIsTyping(false);
       }
     },
-    [input, isTyping, messages],
+    [input, isTyping, messages, responseMode],
   );
+
+  /* ── Quick action handler with typing guard ── */
+  const handleQuickAction = useCallback(async (text: string) => {
+    if (isTyping) return;
+    await sendMessage(text);
+  }, [isTyping, sendMessage]);
 
   /* ── Clear conversation ── */
   const clearChat = useCallback(() => {
@@ -208,11 +248,8 @@ export default function ChatbotWidget() {
   };
 
   /* ── Position logic ──
-      If Submit FAB is open, offset the trigger button to the left.
       The panel always positions relative to the trigger. */
-  const triggerPosition = isSubmitFormOpen
-    ? 'bottom-24 right-6'
-    : 'bottom-6 right-6';
+  const triggerPosition = 'bottom-6 right-6';
 
   /* ── Render ── */
   return (
@@ -259,11 +296,15 @@ export default function ChatbotWidget() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="fixed bottom-24 right-6 z-40
-                       w-[min(380px,calc(100vw-24px))]
-                       h-[min(560px,calc(100vh-120px))]
-                       rounded-2xl bg-background border border-secondary/50
-                       shadow-warm-2xl overflow-hidden flex flex-col"
+            className={[
+              "fixed bottom-24 right-6 z-40",
+              "rounded-2xl bg-background border border-secondary/50 shadow-warm-2xl",
+              "overflow-hidden flex flex-col",
+              "transition-all duration-300 ease-out",
+              isExpanded
+                ? "w-[min(600px,calc(100vw-24px))] h-[min(700px,calc(100vh-120px))]"
+                : "w-[min(380px,calc(100vw-24px))] h-[min(560px,calc(100vh-120px))]"
+            ].join(' ')}
           >
             {/* ── Header ── */}
             <div
@@ -289,6 +330,20 @@ export default function ChatbotWidget() {
               </div>
 
               <div className="flex items-center gap-1">
+                {/* Expand / collapse button */}
+                <button
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  title={isExpanded ? "Compact view" : "Expand panel"}
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150"
+                  aria-label={isExpanded ? "Compact view" : "Expand panel"}
+                >
+                  {isExpanded ? (
+                    <Minimize2 className="h-3.5 w-3.5" />
+                  ) : (
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  )}
+                </button>
+
                 {/* Clear chat button */}
                 {messages.length > 1 && (
                   <button
@@ -314,7 +369,7 @@ export default function ChatbotWidget() {
 
               {/* Quick action chips — hide after first user message */}
               {messages.length === 0 && (
-                <QuickActions onSelect={sendMessage} />
+                <QuickActions onSelect={handleQuickAction} />
               )}
 
               {/* Messages */}
@@ -332,6 +387,40 @@ export default function ChatbotWidget() {
 
               {/* Scroll anchor */}
               <div ref={bottomRef} />
+            </div>
+
+            {/* ── Response Mode Selector ── */}
+            <div className="px-3 py-2 border-t border-secondary/20">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <span className="text-[10px] text-muted-foreground shrink-0 mr-1">
+                  Style:
+                </span>
+                {RESPONSE_MODES.map(mode => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => setResponseMode(mode.id)}
+                    title={mode.description}
+                    className={[
+                      "px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0",
+                      "transition-all duration-150",
+                      responseMode === mode.id
+                        ? "bg-primary text-white"
+                        : "bg-muted text-muted-foreground hover:bg-muted/70"
+                    ].join(' ')}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ── AI Disclaimer ── */}
+            <div className="px-3 py-1.5 bg-muted/50 border-t border-secondary/30">
+              <p className="text-[10px] text-muted-foreground/70 text-center">
+                AI responses may contain inaccuracies. Verify information with
+                peer-reviewed sources for academic use.
+              </p>
             </div>
 
             {/* ── Input Area ── */}

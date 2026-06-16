@@ -2,12 +2,12 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
 import Link from 'next/link';
 import { X, MapPin, Sparkles } from 'lucide-react';
 import { useArtifact } from '@/hooks/useArtifacts';
 import { useAuthStore } from '@/store/authStore';
 import StaticMap from '@/components/artifacts/StaticMap';
+import { ArtifactImage } from '@/components/artifacts/ArtifactImage';
 import { getAgeColor } from '@/lib/ageColor';
 
 interface ArtifactDetailPanelProps {
@@ -118,11 +118,11 @@ export default function ArtifactDetailPanel({
               {/* ── 3a. HERO IMAGE ── */}
               <div className="relative h-56 w-full bg-secondary/30">
                 {artifact.image_url ? (
-                  <Image
+                  <ArtifactImage
                     src={artifact.image_url}
                     alt={artifact.title}
                     fill
-                    className="object-cover image-blur-load"
+                    className="object-cover"
                     sizes="(max-width: 480px) 100vw, 480px"
                     priority
                   />
@@ -257,7 +257,10 @@ export default function ArtifactDetailPanel({
                     </p>
                   </div>
                 ) : user ? (
-                  <button className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-secondary/60 text-sm font-medium text-foreground bg-transparent hover:bg-secondary/20 transition-colors">
+                  <button
+                    type="button"
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-secondary/60 text-sm font-medium text-foreground bg-transparent hover:bg-secondary/20 transition-colors"
+                  >
                     <Sparkles className="h-4 w-4 text-age-ancient" />
                     Analyze with AI
                   </button>
@@ -282,7 +285,11 @@ export default function ArtifactDetailPanel({
                     />
                   ))}
                   {user && (
-                    <button className="shrink-0 w-16 h-16 rounded-lg border border-dashed border-secondary/60 flex items-center justify-center text-xs text-muted-foreground hover:bg-secondary/20 transition-colors">
+                    <button
+                      type="button"
+                      className="shrink-0 w-16 h-16 rounded-lg border border-dashed border-secondary/60 flex items-center justify-center text-xs text-muted-foreground hover:bg-secondary/20 transition-colors"
+                      aria-label="Find similar artifacts"
+                    >
                       +
                     </button>
                   )}

@@ -242,6 +242,7 @@ export default function ImageUploader({
                 clearFile();
               }}
               className="shrink-0 rounded-full p-1 hover:bg-muted transition-colors"
+              aria-label="Remove file"
             >
               <X size={16} />
             </button>
@@ -280,6 +281,7 @@ export default function ImageUploader({
             type="button"
             onClick={() => setError(null)}
             className="ml-auto shrink-0 rounded-full p-0.5 hover:bg-destructive/20"
+            aria-label="Dismiss error"
           >
             <X size={12} />
           </button>

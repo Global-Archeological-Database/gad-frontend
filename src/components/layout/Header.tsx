@@ -20,10 +20,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { GADLogo } from '@/components/ui/GADLogo';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import {
   MapIcon,
   Grid3X3Icon,
@@ -32,6 +32,7 @@ import {
   LogOutIcon,
   LayoutDashboardIcon,
   ShieldIcon,
+  PlusCircleIcon,
 } from 'lucide-react';
 
 // ─── NavLink sub-component ───────────────────────────────────────────────────
@@ -56,6 +57,7 @@ function NavLink({
           'relative text-sm font-medium py-1 transition-colors duration-200 inline-flex items-center gap-1.5',
           isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
         )}
+        aria-current={isActive ? 'page' : undefined}
       >
         {icon}
         {label}
@@ -87,7 +89,7 @@ const navLinks = [
   },
 ];
 
-// ─── Amphora SVG icon ────────────────────────────────────────────────────────
+// ─── Amphora SVG icon (kept for backward compat, prefer GADLogo) ────────────
 
 function AmphoraIcon({ className }: { className?: string }) {
   return (
@@ -106,6 +108,42 @@ function AmphoraIcon({ className }: { className?: string }) {
       <path d="M8 8c0 1.5.5 2 1.5 2.5" />
       <path d="M16 8c0 1.5-.5 2-1.5 2.5" />
     </svg>
+  );
+}
+
+// ─── MobileNavItem sub-component ─────────────────────────────────────────────
+
+function MobileNavItem({
+  href,
+  icon,
+  label,
+  primary = false,
+  onClick,
+}: {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  primary?: boolean;
+  onClick?: () => void;
+}) {
+  const pathname = usePathname();
+  const isActive = pathname === href;
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium",
+        "transition-all duration-200",
+        isActive && "bg-primary/10 text-primary",
+        primary && !isActive && "bg-primary/5 text-primary border border-primary/20",
+        !isActive && !primary && "text-muted-foreground hover:bg-muted hover:text-foreground"
+      )}
+      aria-current={isActive ? 'page' : undefined}
+    >
+      <span className="h-4 w-4 shrink-0">{icon}</span>
+      {label}
+    </Link>
   );
 }
 
@@ -197,12 +235,17 @@ export default function Header() {
             <LayoutDashboardIcon className="w-4 h-4 mr-2" />
             <span>Dashboard</span>
           </DropdownMenuItem>
-          {user.role === 'admin' && (
+          {(user.role === 'admin' || user.role === 'owner') && (
             <DropdownMenuItem onClick={() => router.push('/admin')}>
               <ShieldIcon className="w-4 h-4 mr-2" />
               <span>Admin Panel</span>
             </DropdownMenuItem>
           )}
+          <DropdownMenuSeparator />
+          {/* Theme toggle in dropdown */}
+          <div className="px-2 py-1.5">
+            <ThemeToggle />
+          </div>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             variant="destructive"
@@ -220,16 +263,8 @@ export default function Header() {
     <header className={headerClass}>
       <div className="h-full max-w-7xl mx-auto px-4 flex items-center justify-between">
         {/* ── Left: Logo ─────────────────────────────────────────────── */}
-        <Link href="/" className="flex items-center gap-2 group">
-          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary transition-shadow duration-200 group-hover:shadow-golden">
-            <AmphoraIcon className="text-white" />
-          </span>
-          <span className="font-display text-lg font-bold text-foreground">
-            GAD
-          </span>
-          <span className="text-xs text-muted-foreground hidden sm:inline-block">
-            Global Archaeological Database
-          </span>
+        <Link href="/" className="group">
+          <GADLogo size="sm" variant="full" />
         </Link>
 
         {/* ── Center: Desktop Nav Links ─────────────────────────────── */}
@@ -246,14 +281,19 @@ export default function Header() {
 
         {/* ── Right: Auth + Submit + Mobile Hamburger ───────────────── */}
         <div className="flex items-center gap-2">
-          {/* Submit Artifact — only when authenticated, desktop only */}
-          {user && (
+          {/* Submit Artifact — only when authenticated, desktop only, hidden on submit page */}
+          {user && pathname !== '/submit' && (
             <Link href="/submit" className="hidden md:inline-flex">
               <Button variant="default" size="sm">
                 Submit Artifact
               </Button>
             </Link>
           )}
+
+          {/* Theme toggle — desktop */}
+          <div className="hidden md:flex items-center">
+            <ThemeToggle />
+          </div>
 
           {/* Auth section — desktop only */}
           <div className="hidden md:flex items-center gap-1">
@@ -271,124 +311,117 @@ export default function Header() {
             </SheetTrigger>
             <SheetContent
               side="left"
-              className="w-72 bg-background border-r border-secondary/20"
+              className="w-72 bg-background border-r border-secondary/20 flex flex-col"
             >
-              <SheetHeader className="pb-4">
-                <SheetTitle className="flex items-center gap-3">
-                  <Link
-                    href="/"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    <span className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary shadow-golden">
-                      <AmphoraIcon className="text-white" />
-                    </span>
-                  </Link>
-                  <div>
-                    <span className="font-display text-lg font-bold text-foreground block">
-                      GAD
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Global Archaeological Database
-                    </span>
-                  </div>
-                </SheetTitle>
-              </SheetHeader>
+              {/* Top: Logo */}
+              <div className="p-4 border-b border-secondary/40">
+                <Link
+                  href="/"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <GADLogo size="md" variant="full" />
+                </Link>
+              </div>
 
-              {/* Mobile nav links */}
-              <nav className="flex flex-col gap-1 px-2">
-                {navLinks.map((link) => {
-                  const isActive = pathname === link.href;
-                  return (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        'flex items-center gap-3 px-3 py-2.5 rounded-lg text-base font-medium transition-colors duration-200',
-                        isActive
-                          ? 'text-primary bg-primary/5'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-                      )}
-                    >
-                      {link.icon}
-                      {link.label}
-                    </Link>
-                  );
-                })}
+              {/* Primary navigation */}
+              <nav className="p-4 space-y-1">
+                <MobileNavItem
+                  href="/"
+                  icon={<MapIcon className="h-4 w-4" />}
+                  label="Map"
+                  onClick={() => setMobileOpen(false)}
+                />
+                <MobileNavItem
+                  href="/artifacts"
+                  icon={<Grid3X3Icon className="h-4 w-4" />}
+                  label="Collection"
+                  onClick={() => setMobileOpen(false)}
+                />
               </nav>
 
-              <div className="border-t border-secondary/20 my-4" />
-
-              {/* Mobile: Submit Artifact */}
+              {/* Authenticated navigation */}
               {user && (
-                <div className="px-2 mb-4">
+                <>
+                  <div className="px-4 py-2 border-t border-secondary/40">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+                      Your Account
+                    </p>
+                    <div className="space-y-1">
+                      <MobileNavItem
+                        href="/submit"
+                        icon={<PlusCircleIcon className="h-4 w-4" />}
+                        label="Submit Artifact"
+                        primary
+                        onClick={() => setMobileOpen(false)}
+                      />
+                      <MobileNavItem
+                        href="/dashboard"
+                        icon={<LayoutDashboardIcon className="h-4 w-4" />}
+                        label="Dashboard"
+                        onClick={() => setMobileOpen(false)}
+                      />
+                      {(user.role === 'admin' || user.role === 'owner') && (
+                        <MobileNavItem
+                          href="/admin"
+                          icon={<ShieldIcon className="h-4 w-4" />}
+                          label="Admin Panel"
+                          onClick={() => setMobileOpen(false)}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* User info + sign out */}
+                  <div className="mt-auto p-4 border-t border-secondary/40">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary text-white font-bold text-sm flex items-center justify-center">
+                          {(user.display_name || user.email).charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{user.display_name || 'Your Account'}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[160px]">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSignOut();
+                          setMobileOpen(false);
+                        }}
+                        className="p-2 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                        aria-label="Sign out"
+                      >
+                        <LogOutIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Unauthenticated */}
+              {!user && (
+                <div className="mt-auto p-4 border-t border-secondary/40 space-y-2">
                   <Link
-                    href="/submit"
+                    href="/login"
                     onClick={() => setMobileOpen(false)}
                   >
-                    <Button variant="default" className="w-full">
-                      Submit Artifact
+                    <Button variant="outline" className="w-full">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link
+                    href="/register"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    <Button variant="default" className="w-full bg-primary hover:bg-primary/90">
+                      Create Account
                     </Button>
                   </Link>
                 </div>
               )}
-
-              <div className="border-t border-secondary/20 my-4" />
-
-              {/* Mobile: Auth section */}
-              <div className="px-2 space-y-2">
-                {!isInitialized ? (
-                  <Skeleton className="w-full h-10 rounded-lg bg-muted animate-pulse" />
-                ) : !user ? (
-                  <>
-                    <Link
-                      href="/login"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      <Button variant="ghost" className="w-full">
-                        Sign In
-                      </Button>
-                    </Link>
-                    <Link
-                      href="/register"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      <Button variant="default" className="w-full">
-                        Register
-                      </Button>
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-3 px-3 py-2">
-                      <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center font-display text-sm font-bold text-white">
-                        {user.display_name
-                          ? user.display_name.charAt(0).toUpperCase()
-                          : user.email.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {user.display_name || 'User'}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {user.email}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleSignOut();
-                        setMobileOpen(false);
-                      }}
-                      className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors duration-200 cursor-pointer"
-                    >
-                      <LogOutIcon className="w-4 h-4" />
-                      Sign Out
-                    </button>
-                  </>
-                )}
-              </div>
             </SheetContent>
           </Sheet>
         </div>

@@ -1,9 +1,9 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Trash2 } from "lucide-react";
+import { ArtifactImage } from "@/components/artifacts/ArtifactImage";
 import type { Artifact } from "@/types/artifact";
 
 // Age → color mapping (museum catalog accent colors)
@@ -34,37 +34,16 @@ interface ArtifactCardProps {
   onDelete?: (artifact: Artifact) => void;
 }
 
-function handleImageError(e: React.SyntheticEvent<HTMLImageElement>) {
-  const img = e.currentTarget;
-  img.style.display = "none";
-  // Show a fallback placeholder
-  const parent = img.parentElement;
-  if (parent) {
-    const placeholder = document.createElement("div");
-    placeholder.className =
-      "flex items-center justify-center h-full bg-muted text-muted-foreground";
-    placeholder.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
-    parent.appendChild(placeholder);
-  }
-}
-
 export default function ArtifactCard({ artifact, adminMode, onDelete }: ArtifactCardProps) {
-  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    e.currentTarget.classList.add("loaded");
-  };
-
   const cardContent = (
     <>
       {/* IMAGE ZONE — ~65% of card height via aspect-[4/3] */}
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-        <Image
+        <ArtifactImage
           src={artifact.thumbnail_url || artifact.image_url || ""}
           alt={artifact.title}
           fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-          className="object-cover image-blur-load transition-transform duration-500 ease-out group-hover:scale-105"
-          onError={handleImageError}
-          onLoadingComplete={handleImageLoad as any}
+          className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
         />
 
         {/* Age color accent bar at very top of image */}
@@ -132,7 +111,7 @@ export default function ArtifactCard({ artifact, adminMode, onDelete }: Artifact
   if (adminMode) {
     return (
       <div className="group relative">
-        <div className="block rounded-xl overflow-hidden bg-white border border-secondary/40 shadow-warm-sm card-hover">
+        <div className="block rounded-xl overflow-hidden bg-card border border-secondary/40 shadow-warm-sm card-hover">
           {cardContent}
         </div>
 
@@ -160,7 +139,7 @@ export default function ArtifactCard({ artifact, adminMode, onDelete }: Artifact
   return (
     <Link
       href={`/artifacts/${artifact.id}`}
-      className="group block relative rounded-xl overflow-hidden bg-white border border-secondary/40 shadow-warm-sm hover:shadow-warm-lg transition-all duration-300 ease-out-quart hover:-translate-y-1 cursor-pointer"
+      className="group block relative rounded-xl overflow-hidden bg-card border border-secondary/40 shadow-warm-sm hover:shadow-warm-lg transition-all duration-300 ease-out-quart hover:-translate-y-1 cursor-pointer"
     >
       {cardContent}
     </Link>

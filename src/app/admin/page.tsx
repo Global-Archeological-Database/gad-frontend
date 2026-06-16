@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -11,6 +11,10 @@ import {
   ActivityIcon,
   SearchIcon,
   ExternalLinkIcon,
+  SettingsIcon,
+  UserCheckIcon,
+  UploadIcon,
+  CrownIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -44,7 +48,7 @@ import { artifactKeys } from '@/hooks/useArtifacts';
 import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import type { Artifact } from '@/types/artifact';
-import type { UserProfile } from '@/types/user';
+import type { UserProfile, AdminSettings } from '@/types/user';
 
 /* ─── Quick Stats ─── */
 
@@ -123,9 +127,11 @@ function QuickStats({
 function UsersTable({
   users,
   onRoleChange,
+  currentUserRole,
 }: {
   users: UserProfile[];
   onRoleChange: (uid: string, role: 'user' | 'admin') => void;
+  currentUserRole?: string;
 }) {
   const currentUser = useAuthStore((s) => s.user);
   const [search, setSearch] = useState('');
@@ -139,6 +145,8 @@ function UsersTable({
         (u.display_name && u.display_name.toLowerCase().includes(q)),
     );
   }, [users, search]);
+
+  const isOwner = currentUserRole === 'owner';
 
   return (
     <div className="rounded-xl border border-secondary/40 overflow-hidden shadow-warm-xs bg-white">
@@ -187,12 +195,24 @@ function UsersTable({
                 {/* User column */}
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
+                    <div
+                      className={cn(
+                        'w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm shrink-0',
+                        user.role === 'owner'
+                          ? 'bg-amber-100 text-amber-700'
+                          : user.role === 'admin'
+                          ? 'bg-primary/10 text-primary'
+                          : 'bg-muted text-muted-foreground',
+                      )}
+                    >
                       {(user.display_name || user.email)[0].toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
+                      <p className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
                         {user.display_name || 'No name set'}
+                        {user.role === 'owner' && (
+                          <CrownIcon className="h-3.5 w-3.5 text-amber-500" />
+                        )}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">
                         {user.email}
@@ -203,28 +223,35 @@ function UsersTable({
 
                 {/* Role column */}
                 <td className="px-4 py-3">
-                  <Select
-                    value={user.role}
-                    onValueChange={(role) =>
-                      onRoleChange(user.uid, role as 'user' | 'admin')
-                    }
-                    disabled={user.uid === currentUser?.uid}
-                  >
-                    <SelectTrigger
-                      className={cn(
-                        'h-7 text-xs w-24 rounded-full border',
-                        user.role === 'admin'
-                          ? 'border-primary/40 bg-primary/5 text-primary'
-                          : 'border-secondary text-muted-foreground',
-                      )}
+                  {user.role === 'owner' ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                      <CrownIcon className="h-3 w-3" />
+                      Owner
+                    </span>
+                  ) : (
+                    <Select
+                      value={user.role}
+                      onValueChange={(role) =>
+                        onRoleChange(user.uid, role as 'user' | 'admin')
+                      }
+                      disabled={!isOwner || user.uid === currentUser?.uid}
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
+                      <SelectTrigger
+                        className={cn(
+                          'h-7 text-xs w-24 rounded-full border',
+                          user.role === 'admin'
+                            ? 'border-primary/40 bg-primary/5 text-primary'
+                            : 'border-secondary text-muted-foreground',
+                        )}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 </td>
 
                 {/* Joined column */}
@@ -264,6 +291,7 @@ function UsersTable({
 /* ─── Users Tab ─── */
 
 function UsersTab() {
+  const currentUser = useAuthStore((s) => s.user);
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'users'],
     queryFn: () => adminApi.listUsers(),
@@ -300,7 +328,13 @@ function UsersTab() {
     );
   }
 
-  return <UsersTable users={users} onRoleChange={handleRoleChange} />;
+  return (
+    <UsersTable
+      users={users}
+      onRoleChange={handleRoleChange}
+      currentUserRole={currentUser?.role}
+    />
+  );
 }
 
 /* ─── Admin Artifacts Grid ─── */
@@ -437,9 +471,271 @@ function AllArtifactsTab() {
   );
 }
 
+/* ─── Admin Requests Tab ─── */
+
+function AdminRequestsTab() {
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin', 'requests'],
+    queryFn: () => adminApi.listAdminRequests(),
+    staleTime: 15000,
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: (uid: string) => adminApi.approveAdmin(uid),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'requests'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      toast.success('Admin request approved');
+    },
+    onError: (err) => {
+      const message =
+        err instanceof Error ? err.message : 'Failed to approve request';
+      toast.error(message);
+    },
+  });
+
+  const denyMutation = useMutation({
+    mutationFn: (uid: string) => adminApi.denyAdmin(uid),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'requests'] });
+      toast.success('Admin request denied');
+    },
+    onError: (err) => {
+      const message =
+        err instanceof Error ? err.message : 'Failed to deny request';
+      toast.error(message);
+    },
+  });
+
+  const requests = data?.requests ?? [];
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-muted-foreground">Loading requests...</p>
+      </div>
+    );
+  }
+
+  if (requests.length === 0) {
+    return (
+      <div className="rounded-xl border border-secondary/40 bg-white p-12 text-center shadow-warm-xs">
+        <UserCheckIcon className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />
+        <h3 className="font-display font-semibold text-foreground mb-1">
+          No pending requests
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          Users who request admin privileges will appear here.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {requests.map((user) => (
+        <div
+          key={user.uid}
+          className="rounded-xl border border-secondary/40 bg-white p-4 shadow-warm-xs flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-semibold text-sm shrink-0">
+              {(user.display_name || user.email)[0].toUpperCase()}
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {user.display_name || 'No name set'}
+              </p>
+              <p className="text-xs text-muted-foreground">{user.email}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-destructive border-destructive/30 hover:bg-destructive/5"
+              onClick={() => denyMutation.mutate(user.uid)}
+              disabled={denyMutation.isPending}
+            >
+              Deny
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => approveMutation.mutate(user.uid)}
+              disabled={approveMutation.isPending}
+            >
+              Approve
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Settings Tab ─── */
+
+function SettingsTab() {
+  const queryClient = useQueryClient();
+
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ['admin', 'settings'],
+    queryFn: () => adminApi.getSettings(),
+    staleTime: 30000,
+  });
+
+  const [siteName, setSiteName] = useState('');
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync form state when settings load
+  const settingsLoaded = useRef(false);
+  if (settings && !settingsLoaded.current) {
+    setSiteName(settings.site_name || '');
+    settingsLoaded.current = true;
+  }
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: (payload: { site_name: string }) =>
+      adminApi.updateSettings(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] });
+      toast.success('Settings updated');
+    },
+    onError: (err) => {
+      const message =
+        err instanceof Error ? err.message : 'Failed to update settings';
+      toast.error(message);
+    },
+  });
+
+  const uploadLogoMutation = useMutation({
+    mutationFn: (file: File) => adminApi.uploadLogo(file),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] });
+      setLogoPreview(null);
+      toast.success('Logo uploaded successfully');
+    },
+    onError: (err) => {
+      const message =
+        err instanceof Error ? err.message : 'Failed to upload logo';
+      toast.error(message);
+    },
+  });
+
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Preview locally
+    const reader = new FileReader();
+    reader.onload = () => setLogoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+
+    // Upload immediately
+    uploadLogoMutation.mutate(file);
+  };
+
+  const handleSaveSettings = () => {
+    if (!siteName.trim()) {
+      toast.error('Site name cannot be empty');
+      return;
+    }
+    updateSettingsMutation.mutate({ site_name: siteName.trim() });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-muted-foreground">Loading settings...</p>
+      </div>
+    );
+  }
+
+  const currentLogo = logoPreview || settings?.logo_url;
+
+  return (
+    <div className="max-w-2xl space-y-8">
+      {/* Logo Section */}
+      <div className="rounded-xl border border-secondary/40 bg-white p-6 shadow-warm-xs">
+        <h3 className="font-display font-semibold text-foreground mb-4">
+          Site Logo
+        </h3>
+
+        <div className="flex items-start gap-6">
+          {/* Logo preview */}
+          <div className="w-24 h-24 rounded-xl bg-primary/5 border border-secondary/30 flex items-center justify-center overflow-hidden shrink-0">
+            {currentLogo ? (
+              <img
+                src={currentLogo}
+                alt="Site logo preview"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <ShieldIcon className="h-8 w-8 text-muted-foreground/40" />
+            )}
+          </div>
+
+          <div className="flex-1">
+            <p className="text-sm text-muted-foreground mb-3">
+              Upload a logo image (PNG, JPEG, WebP, or SVG). Max 2MB.
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              className="hidden"
+              onChange={handleLogoSelect}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadLogoMutation.isPending}
+            >
+              <UploadIcon className="h-4 w-4 mr-2" />
+              {uploadLogoMutation.isPending ? 'Uploading...' : 'Upload Logo'}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Site Name Section */}
+      <div className="rounded-xl border border-secondary/40 bg-white p-6 shadow-warm-xs">
+        <h3 className="font-display font-semibold text-foreground mb-4">
+          Site Name
+        </h3>
+        <div className="flex items-end gap-3">
+          <div className="flex-1">
+            <label className="block text-xs text-muted-foreground mb-1.5">
+              Display name shown in the header logo
+            </label>
+            <Input
+              value={siteName}
+              onChange={(e) => setSiteName(e.target.value)}
+              placeholder="Global Archaeological Database"
+            />
+          </div>
+          <Button
+            onClick={handleSaveSettings}
+            disabled={updateSettingsMutation.isPending}
+          >
+            {updateSettingsMutation.isPending ? 'Saving...' : 'Save'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Admin Page ─── */
 
 export default function AdminPage() {
+  const currentUser = useAuthStore((s) => s.user);
+  const isOwner = currentUser?.role === 'owner';
+
   // Fetch users count for stats
   const { data: usersData } = useQuery({
     queryKey: ['admin', 'users'],
@@ -459,7 +755,7 @@ export default function AdminPage() {
 
   return (
     <AuthGuard requireAdmin>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Admin page header */}
         <div className="flex items-center gap-3 mb-6 pb-6 border-b border-secondary/40">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -498,6 +794,24 @@ export default function AdminPage() {
                 {artifactCount}
               </Badge>
             </TabsTrigger>
+            {isOwner && (
+              <TabsTrigger
+                value="requests"
+                className="data-[state=active]:bg-white data-[state=active]:shadow-warm-xs rounded-md text-sm"
+              >
+                <UserCheckIcon className="h-4 w-4 mr-1.5" />
+                Requests
+              </TabsTrigger>
+            )}
+            {isOwner && (
+              <TabsTrigger
+                value="settings"
+                className="data-[state=active]:bg-white data-[state=active]:shadow-warm-xs rounded-md text-sm"
+              >
+                <SettingsIcon className="h-4 w-4 mr-1.5" />
+                Settings
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="users">
@@ -507,6 +821,18 @@ export default function AdminPage() {
           <TabsContent value="artifacts">
             <AllArtifactsTab />
           </TabsContent>
+
+          {isOwner && (
+            <TabsContent value="requests">
+              <AdminRequestsTab />
+            </TabsContent>
+          )}
+
+          {isOwner && (
+            <TabsContent value="settings">
+              <SettingsTab />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
     </AuthGuard>
