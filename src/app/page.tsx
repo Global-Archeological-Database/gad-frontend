@@ -1,10 +1,10 @@
-import MapExplorer from '@/components/map/MapExplorer';
+'use client';
 
-export const metadata = {
-  title: 'GAD — Map Explorer',
-  description:
-    'Explore archaeological artifacts from around the world on an interactive map.',
-};
+import dynamic from 'next/dynamic';
+
+const MapExplorer = dynamic(() => import('@/components/map/MapExplorer'), {
+  ssr: false,
+});
 
 export default function Home() {
   return <MapExplorer />;

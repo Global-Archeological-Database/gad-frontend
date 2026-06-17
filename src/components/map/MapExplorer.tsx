@@ -89,14 +89,6 @@ const MAP_THEME_OPTIONS: { id: MapTheme; label: string; icon: typeof MapPin }[] 
   { id: 'dark', label: 'Dark', icon: Moon },
 ];
 
-/** MapTypeId to google.maps.MapTypeId mapping */
-const MAP_TYPE_IDS: Record<MapTheme, google.maps.MapTypeId | undefined> = {
-  streets: google.maps?.MapTypeId?.ROADMAP ?? 'roadmap' as google.maps.MapTypeId,
-  terrain: google.maps?.MapTypeId?.TERRAIN ?? 'terrain' as google.maps.MapTypeId,
-  satellite: google.maps?.MapTypeId?.SATELLITE ?? 'satellite' as google.maps.MapTypeId,
-  dark: undefined, // uses custom styles via mapId
-};
-
 export default function MapExplorer() {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
   const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
@@ -223,7 +215,16 @@ export default function MapExplorer() {
     return undefined;
   }, [mapTheme]);
 
-  const currentMapTypeId = MAP_TYPE_IDS[mapTheme];
+  /** Lazy map type ID lookup — guarded against server-side rendering where `google` is undefined */
+  const currentMapTypeId = useMemo(() => {
+    const MAP_TYPE_IDS: Record<MapTheme, google.maps.MapTypeId | undefined> = {
+      streets: typeof google !== 'undefined' ? google.maps.MapTypeId.ROADMAP : 'roadmap' as google.maps.MapTypeId,
+      terrain: typeof google !== 'undefined' ? google.maps.MapTypeId.TERRAIN : 'terrain' as google.maps.MapTypeId,
+      satellite: typeof google !== 'undefined' ? google.maps.MapTypeId.SATELLITE : 'satellite' as google.maps.MapTypeId,
+      dark: undefined,
+    };
+    return MAP_TYPE_IDS[mapTheme];
+  }, [mapTheme]);
 
   return (
     <APIProvider apiKey={apiKey}>
