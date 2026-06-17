@@ -336,7 +336,7 @@ export default function ChatbotWidget() {
             exit="collapsed"
             variants={panelVariants}
             className={[
-              "z-40 bg-background border border-secondary/50 shadow-warm-2xl",
+              "z-40 chatbot-panel bg-background border border-secondary/50 shadow-warm-2xl",
               "overflow-hidden flex flex-col",
               isMobile
                 ? "fixed inset-0 rounded-none border-0"
@@ -360,8 +360,8 @@ export default function ChatbotWidget() {
           >
             {/* ── Header ── */}
             <div
-              className="flex items-center justify-between px-4 py-3
-                          border-b border-secondary/40 bg-card"
+              className="flex items-center justify-between px-4 py-3 bg-card
+                          border-b border-secondary/40"
             >
               <div className="flex items-center gap-3">
                 <div
@@ -476,7 +476,7 @@ export default function ChatbotWidget() {
             </div>
 
             {/* ── AI Disclaimer ── */}
-            <div className="px-3 py-1.5 bg-card border-t border-secondary/40">
+            <div className="px-3 py-1.5 border-t border-secondary/40 bg-card">
               <p className="text-[10px] text-muted-foreground text-center">
                 AI responses may contain inaccuracies. Verify information with
                 peer-reviewed sources for academic use.
@@ -495,13 +495,13 @@ export default function ChatbotWidget() {
                     placeholder="Ask about archaeological history..."
                     rows={1}
                     className="w-full resize-none rounded-xl border border-secondary/60
-                               bg-background px-3.5 py-2.5 text-sm text-foreground
+                               px-3.5 py-2.5 text-sm text-foreground bg-background
                                placeholder:text-muted-foreground/60
                                focus:border-primary/50 focus:bg-background
                                focus:ring-2 focus:ring-primary/20
                                transition-all duration-200
                                max-h-32 overflow-y-auto"
-                    style={{ minHeight: '40px' }}
+                     style={{ minHeight: '40px' }}
                   />
                   {input.length > 1800 && (
                     <span className="absolute bottom-2 right-2 text-[10px] text-muted-foreground">

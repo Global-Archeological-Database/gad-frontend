@@ -8,38 +8,39 @@
     --font-sans: var(--font-sans)
   }
   :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    --background: 0 0% 100%;
+    --foreground: 0 0% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 4%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 63%;
+    --chart-1: 0 0% 83%;
+    --chart-2: 0 0% 45%;
+    --chart-3: 0 0% 32%;
+    --chart-4: 0 0% 25%;
+    --chart-5: 0 0% 15%;
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar: 0 0% 98%;
+    --sidebar-foreground: 0 0% 4%;
+    --sidebar-primary: 0 0% 9%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 0 0% 63%;
     --color-primary: #B8860B;
     --color-background: #FDFAF5;
     --color-text: #1A1208;
@@ -55,53 +56,38 @@
     --dialog-background: #FFFFFF;
   }
   .dark {
-    /* Core surfaces — deep stone and warm shadow */
-    --background:         #1A1510;   /* Very dark warm brown — like cave walls */
-    --foreground:         #F0EBE0;   /* Warm off-white — parchment in torchlight */
-    --card:               #231F1A;   /* Slightly lighter stone */
-    --card-foreground:    #F0EBE0;
-    --popover:            #231F1A;
-    --popover-foreground: #F0EBE0;
-
-    /* Primary — golden amber shines brighter in dark */
-    --primary:            #C4971A;   /* Brighter gold for dark background */
-    --primary-foreground: #1A1510;
-
-    /* Secondary/muted — warm dark tones */
-    --secondary:          #3D3529;   /* Medium warm brown */
-    --secondary-foreground: #D4C5A9;
-    --muted:              #2A2520;   /* Dark warm muted */
-    --muted-foreground:   #9A8C7D;   /* Warm gray */
-
-    /* Accent — slightly warmer amber */
-    --accent:             #A0522D;   /* Sienna */
-    --accent-foreground:  #F0EBE0;
-
-    /* Destructive */
-    --destructive:        #EF4444;
-    --destructive-foreground: #FFFFFF;
-
-    /* Borders */
-    --border:             #3D3529;   /* Warm dark border */
-    --input:              #3D3529;
-    --ring:               #C4971A;   /* Golden focus ring */
-
-    /* Sidebar — archaeological stone */
-    --sidebar-background: #1A1510;
-    --sidebar-foreground: #F0EBE0;
-    --sidebar-primary: #C4971A;
-    --sidebar-primary-foreground: #1A1510;
-    --sidebar-accent: #3D3529;
-    --sidebar-accent-foreground: #F0EBE0;
-    --sidebar-border: #3D3529;
-    --sidebar-ring: #C4971A;
-
-    /* Chart colors for dark mode */
-    --chart-1: #C4971A;
-    --chart-2: #A0522D;
-    --chart-3: #8B7355;
-    --chart-4: #D4C5A9;
-    --chart-5: #6B5B4F;
+    --background: 30 24% 8%;
+    --foreground: 41 35% 91%;
+    --card: 33 15% 12%;
+    --card-foreground: 41 35% 91%;
+    --popover: 33 15% 12%;
+    --popover-foreground: 41 35% 91%;
+    --primary: 44 77% 44%;
+    --primary-foreground: 30 24% 8%;
+    --secondary: 36 20% 20%;
+    --secondary-foreground: 39 33% 75%;
+    --muted: 30 14% 15%;
+    --muted-foreground: 31 13% 55%;
+    --accent: 19 56% 40%;
+    --accent-foreground: 41 35% 91%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 36 20% 20%;
+    --input: 36 20% 20%;
+    --ring: 44 77% 44%;
+    --sidebar-background: 30 24% 8%;
+    --sidebar-foreground: 41 35% 91%;
+    --sidebar-primary: 44 77% 44%;
+    --sidebar-primary-foreground: 30 24% 8%;
+    --sidebar-accent: 36 20% 20%;
+    --sidebar-accent-foreground: 41 35% 91%;
+    --sidebar-border: 36 20% 20%;
+    --sidebar-ring: 44 77% 44%;
+    --chart-1: 44 77% 44%;
+    --chart-2: 19 56% 40%;
+    --chart-3: 33 24% 44%;
+    --chart-4: 39 33% 75%;
+    --chart-5: 26 15% 36%;
 
     /* Custom GAD design tokens */
     --color-primary: #C4971A;
@@ -163,6 +149,13 @@
   [data-slot="alert-dialog-overlay"] {
     background-color: rgba(0, 0, 0, 0.55) !important;
     backdrop-filter: blur(2px) !important;
+  }
+
+  /* ── Chatbot widget background fix ────────────────────────────────────── */
+  /* Ensure chatbot panel backgrounds are always fully opaque */
+  .chatbot-panel,
+  .chatbot-panel * {
+    opacity: 1 !important;
   }
 }
 
