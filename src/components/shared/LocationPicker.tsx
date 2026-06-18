@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { APIProvider, Map, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MapPinIcon } from 'lucide-react';
+import { MapPinIcon, Layers, Mountain, Satellite, Moon } from 'lucide-react';
 
 export interface LocationValue {
   latitude: number;
@@ -26,6 +26,66 @@ interface LocationPickerProps {
 }
 
 const DEFAULT_CENTER = { lat: 20, lng: 0 };
+
+/** Map style/theme options — same as MapExplorer */
+type MapTheme = 'streets' | 'terrain' | 'satellite' | 'dark';
+
+const MAP_THEME_OPTIONS: { id: MapTheme; label: string; icon: typeof MapPinIcon }[] = [
+  { id: 'streets', label: 'Streets', icon: MapPinIcon },
+  { id: 'terrain', label: 'Terrain', icon: Mountain },
+  { id: 'satellite', label: 'Satellite', icon: Satellite },
+  { id: 'dark', label: 'Dark', icon: Moon },
+];
+
+const LIGHT_MAP_STYLE = [
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road', stylers: [{ saturation: -20 }] },
+  {
+    featureType: 'water',
+    stylers: [{ color: '#a0c4d8' }],
+  },
+  {
+    featureType: 'landscape',
+    stylers: [{ color: '#f5f0e8' }],
+  },
+  {
+    featureType: 'all',
+    stylers: [{ saturation: -20 }],
+  },
+];
+
+const DARK_MAP_STYLE = [
+  { elementType: 'geometry', stylers: [{ color: '#1A1510' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#9A8C7D' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#1A1510' }] },
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ color: '#1A2A35' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ color: '#2A2520' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#D4C5A9' }],
+  },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  {
+    featureType: 'administrative',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#3D3529' }],
+  },
+  {
+    featureType: 'administrative',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#9A8C7D' }],
+  },
+];
 
 function MapClickHandler({
   onMapClick,
@@ -122,6 +182,31 @@ export default function LocationPicker({
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ── Map theme state ───────────────────────────────────────────
+  const [mapTheme, setMapTheme] = useState<MapTheme>('streets');
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+  const themeMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close theme menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (themeMenuRef.current && !themeMenuRef.current.contains(e.target as Node)) {
+        setThemeMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // ── Refs for debounced values (fixes stale closure in handleCoordInput) ──
+  const latInputRef = useRef(latInput);
+  const lngInputRef = useRef(lngInput);
+  const locationDataRef = useRef(locationData);
+
+  useEffect(() => { latInputRef.current = latInput; }, [latInput]);
+  useEffect(() => { lngInputRef.current = lngInput; }, [lngInput]);
+  useEffect(() => { locationDataRef.current = locationData; }, [locationData]);
+
   // Sync inputs when value prop changes externally
   useEffect(() => {
     if (value) {
@@ -150,9 +235,9 @@ export default function LocationPicker({
       setLngInput(lng.toFixed(6));
       // onChange will be called by ReverseGeocoder via handleReverseGeocodeResult
       // but we need to trigger it. We'll call onChange with partial data.
-      onChange({ ...loc, ...locationData });
+      onChange({ ...loc, ...locationDataRef.current });
     },
-    [locationData, onChange]
+    [onChange]
   );
 
   const handleCoordInput = useCallback(
@@ -163,29 +248,66 @@ export default function LocationPicker({
       if (debounceRef.current) clearTimeout(debounceRef.current);
 
       debounceRef.current = setTimeout(() => {
-        const lat = parseFloat(field === 'lat' ? raw : latInput);
-        const lng = parseFloat(field === 'lng' ? raw : lngInput);
+        // Use refs to avoid stale closure — these always hold the latest values
+        const lat = parseFloat(field === 'lat' ? raw : latInputRef.current);
+        const lng = parseFloat(field === 'lng' ? raw : lngInputRef.current);
         if (!isNaN(lat) && !isNaN(lng)) {
-          onChange({ latitude: lat, longitude: lng, ...locationData });
+          onChange({ latitude: lat, longitude: lng, ...locationDataRef.current });
         }
       }, 500);
     },
-    [latInput, lngInput, locationData, onChange]
+    // Empty deps — we use refs instead of closure values
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  // ── Handle map drag end — sync map center to coordinate inputs ──
+  const handleDragEnd = useCallback(
+    (event: { map: google.maps.Map }) => {
+      const instance = event.map;
+      if (instance) {
+        const center = instance.getCenter();
+        if (center) {
+          const lat = center.lat();
+          const lng = center.lng();
+          setLatInput(lat.toFixed(6));
+          setLngInput(lng.toFixed(6));
+          onChange({ latitude: lat, longitude: lng, ...locationDataRef.current });
+        }
+      }
+    },
+    [onChange]
   );
 
   const currentPosition = value
     ? { lat: value.latitude, lng: value.longitude }
     : null;
 
+  // ── Map theme styles ──────────────────────────────────────────
+  const currentStyles = useMemo(() => {
+    if (mapTheme === 'dark') return DARK_MAP_STYLE;
+    if (mapTheme === 'streets') return LIGHT_MAP_STYLE;
+    // terrain and satellite use Google's native rendering — no custom styles
+    return undefined;
+  }, [mapTheme]);
+
+  const currentMapTypeId = useMemo(() => {
+    const MAP_TYPE_IDS: Record<MapTheme, google.maps.MapTypeId | undefined> = {
+      streets: typeof google !== 'undefined' ? google.maps.MapTypeId.ROADMAP : 'roadmap' as google.maps.MapTypeId,
+      terrain: typeof google !== 'undefined' ? google.maps.MapTypeId.TERRAIN : 'terrain' as google.maps.MapTypeId,
+      satellite: typeof google !== 'undefined' ? google.maps.MapTypeId.SATELLITE : 'satellite' as google.maps.MapTypeId,
+      dark: undefined,
+    };
+    return MAP_TYPE_IDS[mapTheme];
+  }, [mapTheme]);
+
   return (
     <APIProvider apiKey={apiKey}>
       <div className="space-y-4">
         {/* Map — 320px height, rounded-xl, fully interactive */}
         <div
-          className="rounded-xl overflow-clip border border-secondary/40 shadow-warm-sm"
-          style={{ height: '320px', touchAction: 'none' }}
-          onWheel={(e) => e.stopPropagation()}
-          onTouchMove={(e) => e.stopPropagation()}
+          className="relative rounded-xl overflow-clip border border-secondary/40 shadow-warm-sm"
+          style={{ height: '320px', contain: 'layout style paint' }}
         >
           <Map
             gestureHandling="greedy"
@@ -198,6 +320,9 @@ export default function LocationPicker({
             zoom={currentPosition ? 10 : 3}
             scrollwheel={true}
             draggable={true}
+            styles={currentStyles}
+            mapTypeId={currentMapTypeId}
+            onDragend={handleDragEnd}
           >
             <MapClickHandler onMapClick={handleMapClick} />
             {currentPosition && (
@@ -217,6 +342,47 @@ export default function LocationPicker({
               />
             )}
           </Map>
+
+          {/* Map theme/style selector — floating bottom-left */}
+          <div ref={themeMenuRef} className="absolute bottom-3 left-3 z-30">
+            <button
+              onClick={() => setThemeMenuOpen((prev) => !prev)}
+              className="h-9 w-9 rounded-full bg-background/95 backdrop-blur-sm border border-secondary/40 shadow-warm-md flex items-center justify-center hover:bg-accent transition-colors"
+              aria-label="Change map style"
+              title="Change map style"
+            >
+              <Layers className="h-4 w-4 text-foreground" />
+            </button>
+
+            {themeMenuOpen && (
+              <div className="absolute bottom-11 left-0 bg-background/95 backdrop-blur-sm border border-secondary/40 rounded-xl shadow-warm-xl p-1.5 min-w-[150px]">
+                {MAP_THEME_OPTIONS.map((option) => {
+                  const Icon = option.icon;
+                  const isActive = mapTheme === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      onClick={() => {
+                        setMapTheme(option.id);
+                        setThemeMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                        isActive
+                          ? 'bg-primary/10 text-primary font-medium'
+                          : 'text-foreground hover:bg-accent'
+                      }`}
+                    >
+                      <Icon className={`h-4 w-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <span>{option.label}</span>
+                      {isActive && (
+                        <span className="ml-auto h-2 w-2 rounded-full bg-primary" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Reverse geocode description */}
