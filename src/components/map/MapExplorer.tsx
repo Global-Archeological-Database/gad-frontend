@@ -1,6 +1,6 @@
 'use client';
 
-import { APIProvider, Map } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps';
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Plus, Layers, MapPin, Satellite, Mountain, Moon } from 'lucide-react';
@@ -89,6 +89,61 @@ const MAP_THEME_OPTIONS: { id: MapTheme; label: string; icon: typeof MapPin }[] 
   { id: 'dark', label: 'Dark', icon: Moon },
 ];
 
+/**
+ * Controls the Google Maps mapTypeId programmatically via the useMap hook.
+ * This is more reliable than the mapTypeId prop on the <Map> component,
+ * which may not update reactively in @vis.gl/react-google-maps.
+ */
+function MapThemeController({ mapTheme }: { mapTheme: MapTheme }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+    const MAP_TYPE_IDS: Record<MapTheme, google.maps.MapTypeId | undefined> = {
+      streets: google.maps.MapTypeId.ROADMAP,
+      terrain: google.maps.MapTypeId.TERRAIN,
+      satellite: google.maps.MapTypeId.SATELLITE,
+      dark: google.maps.MapTypeId.ROADMAP,
+    };
+    const typeId = MAP_TYPE_IDS[mapTheme];
+    if (typeId) {
+      map.setMapTypeId(typeId);
+    }
+  }, [map, mapTheme]);
+
+  return null;
+}
+
+/**
+ * Tracks map bounds using the useMap hook and native Google Maps events.
+ * More reliable than the onBoundsChanged prop which may have inconsistent
+ * event signatures across @vis.gl/react-google-maps versions.
+ */
+function MapBoundsController({
+  onBoundsChange,
+}: {
+  onBoundsChange: (bounds: google.maps.LatLngBounds | null) => void;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+
+    const listener = map.addListener('bounds_changed', () => {
+      onBoundsChange(map.getBounds() ?? null);
+    });
+
+    // Set initial bounds
+    onBoundsChange(map.getBounds() ?? null);
+
+    return () => {
+      google.maps.event.removeListener(listener);
+    };
+  }, [map, onBoundsChange]);
+
+  return null;
+}
+
 export default function MapExplorer() {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
   const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
@@ -102,7 +157,7 @@ export default function MapExplorer() {
   const user = useAuthStore((s) => s.user);
 
   // ── Map theme state ───────────────────────────────────────────
-  const [mapTheme, setMapTheme] = useState<MapTheme>('streets');
+  const [mapTheme, setMapTheme] = useState<MapTheme>('satellite');
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const themeMenuRef = useRef<HTMLDivElement>(null);
 
@@ -166,19 +221,6 @@ export default function MapExplorer() {
   // ── Viewport culling — only render markers within current map bounds ──
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
   const [hasInitialData, setHasInitialData] = useState(false);
-  const mapRef = useRef<google.maps.Map | null>(null);
-
-  const handleBoundsChanged = useCallback(
-    (event: { map?: google.maps.Map }) => {
-      // onBoundsChanged receives a MapEvent object with a .map property
-      const instance = event?.map ?? mapRef.current;
-      if (instance) {
-        mapRef.current = instance;
-        setMapBounds(instance.getBounds() ?? null);
-      }
-    },
-    [],
-  );
 
   const visibleArtifacts = useMemo(() => {
     if (!artifacts || artifacts.length === 0) return [];
@@ -225,20 +267,9 @@ export default function MapExplorer() {
     return undefined;
   }, [mapTheme]);
 
-  /** Lazy map type ID lookup — guarded against server-side rendering where `google` is undefined */
-  const currentMapTypeId = useMemo(() => {
-    const MAP_TYPE_IDS: Record<MapTheme, google.maps.MapTypeId | undefined> = {
-      streets: typeof google !== 'undefined' ? google.maps.MapTypeId.ROADMAP : 'roadmap' as google.maps.MapTypeId,
-      terrain: typeof google !== 'undefined' ? google.maps.MapTypeId.TERRAIN : 'terrain' as google.maps.MapTypeId,
-      satellite: typeof google !== 'undefined' ? google.maps.MapTypeId.SATELLITE : 'satellite' as google.maps.MapTypeId,
-      dark: undefined,
-    };
-    return MAP_TYPE_IDS[mapTheme];
-  }, [mapTheme]);
-
   return (
     <APIProvider apiKey={apiKey}>
-      <div className="relative w-full h-[100dvh] overflow-hidden">
+      <div className="relative w-full h-[100dvh]">
         {/* Map */}
         <Map
           defaultCenter={{ lat: 25, lng: 15 }}
@@ -248,7 +279,6 @@ export default function MapExplorer() {
           gestureHandling="greedy"
           disableDefaultUI={true}
           styles={currentStyles}
-          mapTypeId={currentMapTypeId}
           mapTypeControl={false}
           streetViewControl={false}
           fullscreenControl={false}
@@ -256,8 +286,10 @@ export default function MapExplorer() {
           mapId={mapId}
           className="w-full h-full"
           restriction={MAP_RESTRICTION}
-          onBoundsChanged={handleBoundsChanged}
         >
+          <MapBoundsController onBoundsChange={setMapBounds} />
+          <MapThemeController mapTheme={mapTheme} />
+
           {visibleArtifacts.map((artifact) => {
             const isSelected = artifact.id === selectedArtifactId;
             const isDimmed =
