@@ -93,15 +93,37 @@ function MapClickHandler({
   onMapClick: (lat: number, lng: number) => void;
 }) {
   const map = useMap();
+  const mouseDownPosRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!map) return;
-    const listener = map.addListener('click', (e: google.maps.MapMouseEvent) => {
+
+    const handleMouseDown = (e: google.maps.MapMouseEvent) => {
+      const mouseEvent = e.domEvent as MouseEvent;
+      mouseDownPosRef.current = { x: mouseEvent.clientX, y: mouseEvent.clientY };
+    };
+
+    const handleClick = (e: google.maps.MapMouseEvent) => {
+      const downPos = mouseDownPosRef.current;
+      if (!downPos) return;
+      const mouseEvent = e.domEvent as MouseEvent;
+      const dx = mouseEvent.clientX - downPos.x;
+      const dy = mouseEvent.clientY - downPos.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      // Only treat as a click if the mouse barely moved (< 5px threshold)
+      if (distance > 5) return;
       if (e.latLng) {
         onMapClick(e.latLng.lat(), e.latLng.lng());
       }
-    });
-    return () => listener.remove();
+    };
+
+    map.addListener('mousedown', handleMouseDown);
+    map.addListener('click', handleClick);
+
+    return () => {
+      google.maps.event.clearListeners(map, 'mousedown');
+      google.maps.event.clearListeners(map, 'click');
+    };
   }, [map, onMapClick]);
 
   return null;
@@ -253,9 +275,8 @@ export default function LocationPicker({
       // Build a human-readable reverse geocode string
       const parts = [data.city, data.state, data.country].filter(Boolean);
       setReverseGeocode(parts.length > 0 ? parts.join(', ') : null);
-      onChange(data);
     },
-    [onChange]
+    []
   );
 
   const handleMapClick = useCallback(
