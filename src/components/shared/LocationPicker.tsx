@@ -265,7 +265,7 @@ export default function LocationPicker({
       setLngInput(lng.toFixed(6));
       // onChange will be called by ReverseGeocoder via handleReverseGeocodeResult
       // but we need to trigger it. We'll call onChange with partial data.
-      onChange({ ...loc, ...locationDataRef.current });
+      onChange({ ...locationDataRef.current, ...loc });
     },
     [onChange]
   );
@@ -282,7 +282,7 @@ export default function LocationPicker({
         const lat = parseFloat(field === 'lat' ? raw : latInputRef.current);
         const lng = parseFloat(field === 'lng' ? raw : lngInputRef.current);
         if (!isNaN(lat) && !isNaN(lng)) {
-          onChange({ latitude: lat, longitude: lng, ...locationDataRef.current });
+          onChange({ ...locationDataRef.current, latitude: lat, longitude: lng });
         }
       }, 500);
     },
@@ -302,8 +302,21 @@ export default function LocationPicker({
           const lng = center.lng();
           setLatInput(lat.toFixed(6));
           setLngInput(lng.toFixed(6));
-          onChange({ latitude: lat, longitude: lng, ...locationDataRef.current });
+          onChange({ ...locationDataRef.current, latitude: lat, longitude: lng });
         }
+      }
+    },
+    [onChange]
+  );
+
+  const handleMarkerDragEnd = useCallback(
+    (event: google.maps.MapMouseEvent) => {
+      if (event.latLng) {
+        const lat = event.latLng.lat();
+        const lng = event.latLng.lng();
+        setLatInput(lat.toFixed(6));
+        setLngInput(lng.toFixed(6));
+        onChange({ ...locationDataRef.current, latitude: lat, longitude: lng });
       }
     },
     [onChange]
@@ -327,7 +340,7 @@ export default function LocationPicker({
       streets: typeof google !== 'undefined' ? google.maps.MapTypeId.ROADMAP : 'roadmap' as google.maps.MapTypeId,
       terrain: typeof google !== 'undefined' ? google.maps.MapTypeId.TERRAIN : 'terrain' as google.maps.MapTypeId,
       satellite: typeof google !== 'undefined' ? google.maps.MapTypeId.SATELLITE : 'satellite' as google.maps.MapTypeId,
-      dark: undefined,
+      dark: typeof google !== 'undefined' ? google.maps.MapTypeId.ROADMAP : 'roadmap' as google.maps.MapTypeId,
     };
     return MAP_TYPE_IDS[mapTheme];
   }, [mapTheme]);
@@ -362,7 +375,11 @@ export default function LocationPicker({
               zoom={currentPosition ? 10 : 3}
             />
             {currentPosition && (
-              <AdvancedMarker position={currentPosition}>
+              <AdvancedMarker
+                position={currentPosition}
+                draggable={true}
+                onDragEnd={handleMarkerDragEnd}
+              >
                 <Pin
                   background={'#B8860B'}
                   borderColor={'#8B4513'}
