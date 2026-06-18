@@ -279,9 +279,10 @@ export default function LocationPicker({
     [onChange]
   );
 
-  const currentPosition = value
-    ? { lat: value.latitude, lng: value.longitude }
-    : null;
+  const currentPosition = useMemo(() => {
+    if (!value) return null;
+    return { lat: value.latitude, lng: value.longitude };
+  }, [value?.latitude, value?.longitude]);
 
   // ── Map theme styles ──────────────────────────────────────────
   const currentStyles = useMemo(() => {
@@ -307,7 +308,7 @@ export default function LocationPicker({
         {/* Map — 320px height, rounded-xl, fully interactive */}
         <div
           className="relative rounded-xl overflow-clip border border-secondary/40 shadow-warm-sm"
-          style={{ height: '320px', contain: 'layout style paint' }}
+          style={{ height: '320px' }}
         >
           <Map
             gestureHandling="greedy"

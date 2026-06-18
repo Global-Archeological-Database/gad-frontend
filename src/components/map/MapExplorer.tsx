@@ -241,8 +241,8 @@ export default function MapExplorer() {
       <div className="relative w-full h-[100dvh] overflow-hidden">
         {/* Map */}
         <Map
-          center={{ lat: 25, lng: 15 }}
-          zoom={3}
+          defaultCenter={{ lat: 25, lng: 15 }}
+          defaultZoom={3}
           minZoom={2}
           maxZoom={18}
           gestureHandling="greedy"
