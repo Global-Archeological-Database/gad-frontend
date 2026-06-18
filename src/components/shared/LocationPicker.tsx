@@ -107,6 +107,38 @@ function MapClickHandler({
   return null;
 }
 
+/**
+ * Imperatively pans the map when coordinates change programmatically.
+ * Uses primitive lat/lng/zoom props so object-reference changes on
+ * parent re-render don't trigger unnecessary pans.
+ * Skips the initial mount — defaultCenter/defaultZoom handle positioning.
+ */
+function MapPanController({
+  lat,
+  lng,
+  zoom,
+}: {
+  lat: number;
+  lng: number;
+  zoom: number;
+}) {
+  const map = useMap();
+  const initialRef = useRef(true);
+
+  useEffect(() => {
+    if (!map) return;
+    // Skip the initial mount — the defaultCenter already handles positioning
+    if (initialRef.current) {
+      initialRef.current = false;
+      return;
+    }
+    map.panTo({ lat, lng });
+    map.setZoom(zoom);
+  }, [map, lat, lng, zoom]);
+
+  return null;
+}
+
 function ReverseGeocoder({
   latitude,
   longitude,
@@ -114,7 +146,7 @@ function ReverseGeocoder({
 }: {
   latitude: number;
   longitude: number;
-  onResult: (data: Omit<LocationData, 'latitude' | 'longitude'>) => void;
+  onResult: (data: LocationData) => void;
 }) {
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
 
@@ -154,7 +186,7 @@ function ReverseGeocoder({
             }
           }
 
-          onResult({ country, state, city, region });
+          onResult({ latitude, longitude, country, state, city, region });
         }
       }
     );
@@ -216,16 +248,14 @@ export default function LocationPicker({
   }, [value]);
 
   const handleReverseGeocodeResult = useCallback(
-    (data: Omit<LocationData, 'latitude' | 'longitude'>) => {
+    (data: LocationData) => {
       setLocationData(data);
       // Build a human-readable reverse geocode string
       const parts = [data.city, data.state, data.country].filter(Boolean);
       setReverseGeocode(parts.length > 0 ? parts.join(', ') : null);
-      if (value) {
-        onChange({ ...value, ...data });
-      }
+      onChange(data);
     },
-    [value, onChange]
+    [onChange]
   );
 
   const handleMapClick = useCallback(
@@ -317,8 +347,8 @@ export default function LocationPicker({
             fullscreenControl={false}
             mapId={mapId}
             style={{ width: '100%', height: '100%' }}
-            center={currentPosition ?? DEFAULT_CENTER}
-            zoom={currentPosition ? 10 : 3}
+            defaultCenter={currentPosition ?? DEFAULT_CENTER}
+            defaultZoom={currentPosition ? 10 : 3}
             scrollwheel={true}
             draggable={true}
             styles={currentStyles}
@@ -326,6 +356,11 @@ export default function LocationPicker({
             onDragend={handleDragEnd}
           >
             <MapClickHandler onMapClick={handleMapClick} />
+            <MapPanController
+              lat={currentPosition?.lat ?? 0}
+              lng={currentPosition?.lng ?? 0}
+              zoom={currentPosition ? 10 : 3}
+            />
             {currentPosition && (
               <AdvancedMarker position={currentPosition}>
                 <Pin
