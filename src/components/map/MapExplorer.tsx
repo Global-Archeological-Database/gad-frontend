@@ -165,13 +165,16 @@ export default function MapExplorer() {
 
   // ── Viewport culling — only render markers within current map bounds ──
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
+  const [hasInitialData, setHasInitialData] = useState(false);
   const mapRef = useRef<google.maps.Map | null>(null);
 
   const handleBoundsChanged = useCallback(
-    (evt: { map: google.maps.Map }) => {
-      if (evt.map) {
-        mapRef.current = evt.map;
-        setMapBounds(evt.map.getBounds() ?? null);
+    (map?: google.maps.Map) => {
+      // Fix: onBoundsChanged receives the map instance directly, not {map: ...}
+      const instance = map || mapRef.current;
+      if (instance) {
+        mapRef.current = instance;
+        setMapBounds(instance.getBounds() ?? null);
       }
     },
     [],
@@ -179,15 +182,22 @@ export default function MapExplorer() {
 
   const visibleArtifacts = useMemo(() => {
     if (!artifacts || artifacts.length === 0) return [];
-    // If no bounds yet (initial render), show all artifacts
-    if (!mapBounds) return artifacts;
+    // Before initial data load is complete, show ALL artifacts
+    if (!hasInitialData || !mapBounds) return artifacts;
     return artifacts.filter((a: Artifact) => {
       const lat = a.latitude ?? a.location?.coordinates?.latitude;
       const lng = a.longitude ?? a.location?.coordinates?.longitude;
       if (lat == null || lng == null) return false;
       return mapBounds.contains({ lat, lng });
     });
-  }, [artifacts, mapBounds]);
+  }, [artifacts, mapBounds, hasInitialData]);
+
+  // Set initial data flag when artifacts first arrive
+  useEffect(() => {
+    if (data && !hasInitialData) {
+      setHasInitialData(true);
+    }
+  }, [data, hasInitialData]);
 
   // ── Handlers ──────────────────────────────────────────────────
   const handleMarkerClick = (id: string) => {
@@ -231,8 +241,8 @@ export default function MapExplorer() {
       <div className="relative w-full h-[100dvh] overflow-hidden">
         {/* Map */}
         <Map
-          defaultCenter={{ lat: 25, lng: 15 }}
-          defaultZoom={3}
+          center={{ lat: 25, lng: 15 }}
+          zoom={3}
           minZoom={2}
           maxZoom={18}
           gestureHandling="greedy"

@@ -46,7 +46,7 @@ export default function SimilarArtifactsSection({ artifactId }: SimilarArtifacts
       
       // Handle parse_error
       if (result.message === 'parse_error') {
-        toast.error('We couldn\'t find similar artifacts right now. The AI service returned an unexpected response. Please try again.');
+        toast.error('The AI similarity search encountered an issue. Please try again.');
         setSimilar([]);
         return;
       }
@@ -55,10 +55,23 @@ export default function SimilarArtifactsSection({ artifactId }: SimilarArtifacts
       
       // If no similar found but not an error state
       if (result.similar.length === 0) {
-        toast.error('We couldn\'t find similar artifacts right now. This may be because the database doesn\'t have enough related artifacts yet. Try again as the collection grows.');
+        toast.info('No similar artifacts found. Try again as the collection grows.');
       }
-    } catch (e) {
-      toast.error('We could not find similar artifacts right now. This may be because there are not enough related artifacts in the database yet.');
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        const msg = e.message;
+        if (msg.includes('401') || msg.includes('Unauthorized')) {
+          toast.error('Authentication required. Please sign in to use this feature.');
+        } else if (msg.includes('429') || msg.includes('Too Many Requests')) {
+          toast.error('Rate limit reached. Please wait a moment before trying again.');
+        } else if (msg.includes('fetch') || msg.includes('NetworkError') || msg.includes('Failed to fetch')) {
+          toast.error('Unable to connect to the AI service. The server may be temporarily unavailable.');
+        } else {
+          toast.error(`Error: ${msg}`);
+        }
+      } else {
+        toast.error('We could not find similar artifacts right now. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

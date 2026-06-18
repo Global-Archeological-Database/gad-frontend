@@ -217,7 +217,7 @@ export default function Header() {
 
     return (
       <DropdownMenu>
-        <DropdownMenuTrigger className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-display text-sm font-bold text-white ring-2 ring-transparent hover:ring-primary/20 transition-all duration-200 shadow-warm-sm hover:shadow-golden cursor-pointer outline-none">
+        <DropdownMenuTrigger className="w-10 h-10 rounded-full bg-primary/85 dark:bg-primary flex items-center justify-center font-display text-sm font-bold text-white ring-2 ring-transparent hover:ring-primary/20 transition-all duration-200 shadow-warm-sm hover:shadow-golden cursor-pointer outline-none">
           {initial}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-[180px]">
@@ -284,7 +284,7 @@ export default function Header() {
           {/* Submit Artifact — only when authenticated, desktop only, hidden on submit page */}
           {user && pathname !== '/submit' && (
             <Link href="/submit" className="hidden md:inline-flex">
-              <Button variant="default" size="sm" className="h-10">
+              <Button variant="default" size="sm" className="h-10 bg-primary/85 hover:bg-primary/70 dark:bg-primary dark:hover:bg-primary/90">
                 Submit Artifact
               </Button>
             </Link>
@@ -375,7 +375,7 @@ export default function Header() {
                   <div className="mt-auto p-4 border-t border-secondary/40">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary text-white font-bold text-sm flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-primary/85 dark:bg-primary text-white font-bold text-sm flex items-center justify-center">
                           {(user.display_name || user.email).charAt(0).toUpperCase()}
                         </div>
                         <div>
@@ -416,7 +416,7 @@ export default function Header() {
                     href="/register"
                     onClick={() => setMobileOpen(false)}
                   >
-                    <Button variant="default" className="w-full bg-primary hover:bg-primary/90">
+                    <Button variant="default" className="w-full bg-primary/85 hover:bg-primary/70 dark:bg-primary dark:hover:bg-primary/90">
                       Create Account
                     </Button>
                   </Link>

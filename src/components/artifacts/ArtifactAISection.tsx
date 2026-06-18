@@ -94,8 +94,21 @@ export default function ArtifactAISection({
     try {
       const result = await aiApi.analyze(artifactId);
       setAnalysis(result.analysis);
-    } catch (e) {
-      setError("We couldn't analyze this artifact right now. The AI service may be temporarily unavailable. Please try again.");
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        const msg = e.message;
+        if (msg.includes('401') || msg.includes('Unauthorized')) {
+          setError('Authentication required. Please sign in to use AI analysis.');
+        } else if (msg.includes('429') || msg.includes('Too Many Requests')) {
+          setError('Rate limit reached. Please wait a moment before trying again.');
+        } else if (msg.includes('fetch') || msg.includes('NetworkError') || msg.includes('Failed to fetch')) {
+          setError('Unable to connect to the AI service. The server may be temporarily unavailable.');
+        } else {
+          setError(`AI analysis failed: ${msg}`);
+        }
+      } else {
+        setError("We couldn't analyze this artifact right now. Please try again.");
+      }
     } finally {
       setIsAnalyzing(false);
     }

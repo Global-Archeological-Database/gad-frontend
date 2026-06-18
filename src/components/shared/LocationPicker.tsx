@@ -182,12 +182,12 @@ export default function LocationPicker({
       <div className="space-y-4">
         {/* Map — 320px height, rounded-xl, fully interactive */}
         <div
-          className="rounded-xl overflow-hidden border border-secondary/40 shadow-warm-sm"
-          style={{ height: '320px' }}
+          className="rounded-xl overflow-clip border border-secondary/40 shadow-warm-sm"
+          style={{ height: '320px', touchAction: 'none' }}
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
         >
           <Map
-            defaultCenter={DEFAULT_CENTER}
-            defaultZoom={3}
             gestureHandling="greedy"
             streetViewControl={false}
             mapTypeControl={false}
@@ -196,6 +196,8 @@ export default function LocationPicker({
             style={{ width: '100%', height: '100%' }}
             center={currentPosition ?? DEFAULT_CENTER}
             zoom={currentPosition ? 10 : 3}
+            scrollwheel={true}
+            draggable={true}
           >
             <MapClickHandler onMapClick={handleMapClick} />
             {currentPosition && (

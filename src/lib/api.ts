@@ -5,6 +5,11 @@ import type { UserProfile, AdminSettings } from '@/types/user';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
+// Log a warning if no API URL is configured
+if (typeof window !== 'undefined' && !API_BASE_URL) {
+  console.warn('[GAD] NEXT_PUBLIC_API_URL is not set. API calls will use relative paths.');
+}
+
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   const user = auth.currentUser;
   const headers: Record<string, string> = {
@@ -13,14 +18,27 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   };
 
   if (user) {
-    const token = await user.getIdToken();
-    headers['Authorization'] = `Bearer ${token}`;
+    try {
+      const token = await user.getIdToken();
+      headers['Authorization'] = `Bearer ${token}`;
+    } catch (tokenErr) {
+      console.warn('[GAD] Failed to get auth token:', tokenErr);
+    }
   }
 
-  const response = await fetch(`${API_BASE_URL}${url}`, {
-    ...options,
-    headers,
-  });
+  const fullUrl = `${API_BASE_URL}${url}`;
+
+  // Wrap fetch in a try-catch for network errors
+  let response: Response;
+  try {
+    response = await fetch(fullUrl, {
+      ...options,
+      headers,
+    });
+  } catch (fetchErr) {
+    // Network error (DNS, connection refused, CORS, etc.)
+    throw new Error(`Network error: Unable to reach the server at ${fullUrl}. Check that the backend is running.`);
+  }
 
   if (!response.ok) {
     let data: unknown;
