@@ -169,9 +169,9 @@ export default function MapExplorer() {
   const mapRef = useRef<google.maps.Map | null>(null);
 
   const handleBoundsChanged = useCallback(
-    (map?: google.maps.Map) => {
-      // Fix: onBoundsChanged receives the map instance directly, not {map: ...}
-      const instance = map || mapRef.current;
+    (event: { map?: google.maps.Map }) => {
+      // onBoundsChanged receives a MapEvent object with a .map property
+      const instance = event?.map ?? mapRef.current;
       if (instance) {
         mapRef.current = instance;
         setMapBounds(instance.getBounds() ?? null);
